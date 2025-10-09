@@ -1,9 +1,44 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&display=swap');
 @import "tailwindcss";  
 
-/* Basic resets - let Tailwind handle the rest */
+/* Aurora Defense v3 Theme */
 body {
-  font-family: Inter, system-ui, Arial, sans-serif;
+  background: radial-gradient(circle at 25% 20%, #2B3C77 0%, #1A2346 60%, #0E1329 100%);
+  color: #F4F6FF;
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  background-attachment: fixed;
+}
+
+.card {
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(168, 85, 247, 0.25);
+  border-radius: 1rem;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 8px 25px rgba(37, 99, 235, 0.15);
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 0 25px rgba(99,102,241,0.35);
+  transform: translateY(-2px);
+}
+
+.text-glow {
+  text-shadow: 0 0 8px rgba(147,197,253,0.25);
+}
+
+@keyframes softAurora {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.bg-aurora {
+  background: linear-gradient(270deg, #60A5FA, #A78BFA, #3B82F6, #06B6D4);
+  background-size: 800% 800%;
+  animation: softAurora 25s ease infinite;
 }
 
 /* Optional: Custom component classes if needed */
