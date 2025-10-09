@@ -34,8 +34,17 @@ export async function POST(req: Request) {
 
     // Calculate time differences for analysis
     const expectedTime = new Date(expectedETA).getTime();
-    const actualTime = actualETA ? new Date(actualETA).getTime() : Date.now();
-    const delayMinutes = (actualTime - expectedTime) / (1000 * 60);
+    const currentTime = Date.now();
+    let delayMinutes = 0;
+    
+    if (actualETA) {
+      // Shipment has arrived - calculate actual delay
+      const actualTime = new Date(actualETA).getTime();
+      delayMinutes = (actualTime - expectedTime) / (1000 * 60);
+    } else {
+      // Shipment still in transit - calculate current delay from expected time
+      delayMinutes = (currentTime - expectedTime) / (1000 * 60);
+    }
 
   // Build compact telemetry summary for prompt (avoid token waste when absent)
   const telemetryLines: string[] = [];

@@ -68,7 +68,10 @@ export async function POST(req: Request) {
     
     const baseTime = new Date();
     const expectedETA = new Date(baseTime.getTime() + (2 * 60 * 60 * 1000)); // 2 hours from now
-    const actualETA = new Date(expectedETA.getTime() + (scenario.delayMinutes * 60 * 1000)); // Add delay
+    
+    // 30% chance of missing/overdue shipment (no actual ETA yet)
+    const isMissing = Math.random() < 0.3;
+    const actualETA = isMissing ? null : new Date(expectedETA.getTime() + (scenario.delayMinutes * 60 * 1000));
 
     // Telemetry generation for attack scenarios
     const cities = [
@@ -136,7 +139,7 @@ export async function POST(req: Request) {
           {
             routeId,
             expectedETA: expectedETA.toISOString(),
-            actualETA: actualETA.toISOString(),
+            actualETA: actualETA ? actualETA.toISOString() : null,
             userId,
             driverName,
             attackScenario: scenario, // Pass scenario for enhanced analysis
