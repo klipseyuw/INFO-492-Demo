@@ -1,0 +1,23 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+@import "tailwindcss";  
+
+/* Basic resets - let Tailwind handle the rest */
+body {
+  font-family: Inter, system-ui, Arial, sans-serif;
+}
+
+/* Optional: Custom component classes if needed */
+.severity-high { 
+  background-color: rgb(220 38 38);
+  color: rgb(255 255 255);
+}
+
+.severity-medium { 
+  background-color: rgb(234 88 12);
+  color: rgb(255 255 255);
+}
+
+.severity-low { 
+  background-color: rgb(37 99 235);
+  color: rgb(255 255 255);
+}
