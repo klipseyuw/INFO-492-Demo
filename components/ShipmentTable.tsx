@@ -13,16 +13,39 @@ interface Shipment {
   createdAt: string;
 }
 
-export default function ShipmentTable() {
+interface ShipmentTableProps {
+  refreshTrigger?: number;
+}
+
+export default function ShipmentTable({ refreshTrigger }: ShipmentTableProps) {
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchShipments();
-    const interval = setInterval(fetchShipments, 30000); // Refresh every 30 seconds
-    return () => clearInterval(interval);
+    let interval: ReturnType<typeof setInterval>;
+    const startPolling = () => {
+      if (interval) clearInterval(interval);
+      const delay: number = document.visibilityState === 'visible' ? 15000 : 45000; // 15s visible, 45s hidden
+      interval = setInterval(fetchShipments, delay);
+    };
+    startPolling();
+    const handleVisibility = () => startPolling();
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      if (interval) clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, []);
+
+  // Refresh when trigger changes
+  useEffect(() => {
+    if (refreshTrigger !== undefined && refreshTrigger > 0) {
+      // Immediate refresh request
+      fetchShipments();
+    }
+  }, [refreshTrigger]);
 
   const fetchShipments = async () => {
     try {

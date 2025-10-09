@@ -11,16 +11,38 @@ interface Alert {
   createdAt: string;
 }
 
-export default function AlertFeed() {
+interface AlertFeedProps {
+  refreshTrigger?: number;
+}
+
+export default function AlertFeed({ refreshTrigger }: AlertFeedProps) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAlerts();
-    const interval = setInterval(fetchAlerts, 15000); // Refresh every 15 seconds
-    return () => clearInterval(interval);
+    let interval: ReturnType<typeof setInterval>;
+    const startPolling = () => {
+      if (interval) clearInterval(interval);
+      const delay: number = document.visibilityState === 'visible' ? 8000 : 30000; // faster when visible
+      interval = setInterval(fetchAlerts, delay);
+    };
+    startPolling();
+    const handleVisibility = () => startPolling();
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      if (interval) clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, []);
+
+  // Refresh when trigger changes
+  useEffect(() => {
+    if (refreshTrigger !== undefined && refreshTrigger > 0) {
+      fetchAlerts();
+    }
+  }, [refreshTrigger]);
 
   const fetchAlerts = async () => {
     try {

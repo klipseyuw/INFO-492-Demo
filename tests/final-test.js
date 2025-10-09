@@ -28,7 +28,7 @@ async function finalTest() {
   console.log('   - Threat Detection: ✅ Correctly identifying risks');
 }
 
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   finalTest().catch(console.error);
 }
 

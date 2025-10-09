@@ -1,5 +1,6 @@
 {
   "name": "info-492-demo",
+  "type": "module",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -12,10 +13,11 @@
     "db:migrate": "npx prisma migrate dev",
     "db:studio": "npx prisma studio",
     "db:generate": "npx prisma generate",
-    "test:normal": "node tests/test-normal.js",
-    "test:ai": "node tests/test-ai.js",
-    "test:final": "node tests/final-test.js",
-    "test": "npm run test:normal && npm run test:ai"
+  "test:normal": "node tests/test-normal.js",
+  "test:ai": "node tests/test-ai.js",
+  "test:attack": "node tests/test-attack-sim.js",
+  "test:final": "node tests/final-test.js",
+  "test": "npm run test:normal && npm run test:ai && npm run test:attack"
   },
   "dependencies": {
     "@prisma/client": "^6.17.0",

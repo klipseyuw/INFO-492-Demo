@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import axios from "axios";
+import { logActivity, updateActivity } from "@/lib/agentActivity";
 
 // Simulate AI analysis when OpenRouter is unavailable
 function simulateAIAnalysis(delayMinutes: number, routeId: string, driverName: string) {
@@ -47,7 +48,7 @@ function simulateAIAnalysis(delayMinutes: number, routeId: string, driverName: s
 
 export async function POST(req: Request) {
   try {
-    const { routeId, expectedETA, actualETA, userId, driverName } = await req.json();
+    const { routeId, expectedETA, actualETA, userId, driverName, attackScenario } = await req.json();
 
     // Check if user exists and agent is active
     const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -80,20 +81,34 @@ export async function POST(req: Request) {
     { "riskScore": <number 0-100>, "alertType": "<string>", "description": "<string>" }
     `;
 
-    let result;
+  interface AIResult { riskScore: number; alertType: string; description: string; source?: string; usingFallback?: boolean; fallbackReason?: string; [k: string]: unknown }
+  let result: AIResult;
+
+    // Log start activity
+    const started = logActivity({
+      userId,
+      type: attackScenario ? 'threat_analysis' : 'routine_analysis',
+      status: 'in_progress',
+      shipmentId: routeId,
+      description: attackScenario ? `Analyzing suspicious shipment (${attackScenario.type})` : 'Analyzing shipment timing',
+      metadata: { routeId, driverName }
+    });
+    const activityStart = Date.now();
     
     try {
       // Try OpenRouter API with improved JSON parsing
-      console.log("� Attempting OpenRouter API call...");
-      console.log("🎯 Model:", "google/gemma-2-9b-it:free");
+  console.log("[AI] Attempting OpenRouter API call...");
+  const modelName = "deepseek/deepseek-chat-v3.1:free"; // Required model per spec
+  console.log("[AI] Model:", modelName);
       
       const aiRes = await axios.post(
         "https://openrouter.ai/api/v1/chat/completions",
         {
-          model: "google/gemma-2-9b-it:free",
+          model: modelName,
           messages: [{ role: "user", content: prompt }],
-          max_tokens: 150,
-          temperature: 0.7,
+          max_tokens: 200,
+          temperature: 0.4,
+          response_format: { type: "json_object" }
         },
         {
           headers: {
@@ -120,16 +135,20 @@ export async function POST(req: Request) {
       }
       
       result = JSON.parse(jsonString);
+      result.source = 'openrouter';
       
     } catch (apiError) {
       console.warn("OpenRouter API failed, using local AI simulation:", apiError instanceof Error ? apiError.message : apiError);
       
       // Fallback: Use local AI simulation
       result = simulateAIAnalysis(delayMinutes, routeId, driverName);
+      result.source = 'fallback';
+      result.usingFallback = true;
+      result.fallbackReason = 'OpenRouter API call failed';
     }
 
     // Save alert if risk score is significant
-    if (result.riskScore > 20) {
+    if (typeof result.riskScore === 'number' && result.riskScore > 20) {
       await prisma.alert.create({
         data: {
           shipmentId: routeId,
@@ -138,12 +157,27 @@ export async function POST(req: Request) {
           description: result.description || "Anomaly detected",
         },
       });
+      // Log threat if medium/high
+      if (result.riskScore > 40) {
+        logActivity({
+          userId,
+            type: 'threat_detected',
+            status: 'completed',
+            shipmentId: routeId,
+            description: `Threat detected: ${result.alertType}`,
+            metadata: { riskScore: result.riskScore, alertType: result.alertType }
+        });
+      }
     }
+
+    const duration = Date.now() - activityStart;
+    updateActivity(started.id, { status: 'completed', duration, metadata: { ...(started.metadata||{}), riskScore: result.riskScore } });
 
     return NextResponse.json({
       success: true,
       ...result,
-      analyzed: true
+      analyzed: true,
+      attackScenario: attackScenario ? { type: attackScenario.type } : undefined
     });
 
   } catch (error) {

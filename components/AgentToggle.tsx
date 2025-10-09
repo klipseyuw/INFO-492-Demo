@@ -4,9 +4,10 @@ import axios from "axios";
 
 interface AgentToggleProps {
   userId: string;
+  onToggle?: (newStatus: boolean) => void;
 }
 
-export default function AgentToggle({ userId }: AgentToggleProps) {
+export default function AgentToggle({ userId, onToggle }: AgentToggleProps) {
   const [isActive, setIsActive] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +41,7 @@ export default function AgentToggle({ userId }: AgentToggleProps) {
       
       if (response.data.success) {
         setIsActive(newState);
+        onToggle?.(newState); // Notify parent component
       } else {
         throw new Error("Failed to toggle agent");
       }

@@ -40,3 +40,17 @@ model User {
   agentActive Boolean  @default(false)
   createdAt   DateTime @default(now())
 }
+
+model AgentActivity {
+  id              String   @id @default(cuid())
+  userId          String
+  activityType    String   // "analysis", "monitoring", "idle", "threat_detected", "system_check"
+  status          String   // "started", "processing", "completed", "failed"
+  targetShipment  String?  // shipmentId being analyzed
+  description     String
+  metadata        String?  // JSON string for additional data
+  startTime       DateTime @default(now())
+  endTime         DateTime?
+  duration        Int?     // milliseconds
+  createdAt       DateTime @default(now())
+}

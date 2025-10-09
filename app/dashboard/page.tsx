@@ -1,12 +1,43 @@
+"use client";
+import { useState, useEffect } from "react";
 import AgentToggle from "@/components/AgentToggle";
 import ShipmentTable from "@/components/ShipmentTable";
 import AlertFeed from "@/components/AlertFeed";
+import SimulateAttackButton from "@/components/SimulateAttackButton";
+import AgentStatusMonitor from "@/components/AgentStatusMonitor";
+import axios from "axios";
 
 // For demo purposes, using a static user ID
 // In production, this would come from authentication
 const DEMO_USER_ID = "user-1";
 
 export default function Dashboard() {
+  const [agentActive, setAgentActive] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    fetchAgentStatus();
+  }, []);
+
+  const fetchAgentStatus = async () => {
+    try {
+      const response = await axios.get(`/api/agent/toggle?userId=${DEMO_USER_ID}`);
+      if (response.data.success) {
+        setAgentActive(response.data.user.agentActive);
+      }
+    } catch (error) {
+      console.error("Failed to fetch agent status:", error);
+    }
+  };
+
+  const handleAgentToggle = (newStatus: boolean) => {
+    setAgentActive(newStatus);
+  };
+
+  const handleAttackSimulated = () => {
+    // Force refresh of child components by updating the key
+    setRefreshKey(prev => prev + 1);
+  };
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -32,19 +63,29 @@ export default function Dashboard() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-8">
-          {/* Agent Control Panel */}
-          <AgentToggle userId={DEMO_USER_ID} />
+          {/* Control Panel */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <AgentToggle userId={DEMO_USER_ID} onToggle={handleAgentToggle} />
+            <SimulateAttackButton 
+              userId={DEMO_USER_ID} 
+              agentActive={agentActive} 
+              onAttackSimulated={handleAttackSimulated}
+            />
+          </div>
+
+          {/* Agent Status Monitor */}
+          <AgentStatusMonitor userId={DEMO_USER_ID} agentActive={agentActive} />
 
           {/* Dashboard Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Shipments - Takes 2/3 of the width on large screens */}
             <div className="lg:col-span-2">
-              <ShipmentTable />
+              <ShipmentTable refreshTrigger={refreshKey} />
             </div>
 
             {/* Alerts - Takes 1/3 of the width on large screens */}
             <div className="lg:col-span-1">
-              <AlertFeed />
+              <AlertFeed refreshTrigger={refreshKey} />
             </div>
           </div>
 
