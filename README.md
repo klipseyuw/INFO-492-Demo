@@ -6,12 +6,13 @@ A cutting-edge cybersecurity defense platform for warehouse logistics operations
 
 ## 🏗️ Technology Stack
 
-- **Frontend**: Next.js 15 with App Router, TypeScript, TailwindCSS
-- **Backend**: Next.js API Routes with serverless functions
-- **Database**: PostgreSQL with Prisma ORM
-- **AI Engine**: OpenRouter API (DeepSeek Chat v3.1 Free tier)
+- **Frontend**: Next.js 15 (App Router) + TypeScript + TailwindCSS
+- **Backend**: Next.js serverless API routes (`app/api/*`)
+- **Database**: SQLite for dev (see `prisma/schema.prisma`) — can swap to Postgres via `DATABASE_URL` in prod
+- **ORM**: Prisma Client
+- **AI Engine**: OpenRouter API (model: `deepseek/deepseek-chat-v3.1:free`) with local fallback simulation
 - **Runtime**: Node.js 18+ with Turbopack for fast development
-- **Deployment**: Ready for Vercel, Netlify, or Docker
+- **Deployment**: Vercel (recommended) / Docker compatible
 
 ## 📋 Prerequisites
 
@@ -82,11 +83,12 @@ npm run dev
 ## 🛡️ Platform Features
 
 ### 🤖 AI-Powered Threat Detection
-- **Real-time Analysis**: Monitors logistics data using DeepSeek AI model
-- **Anomaly Detection**: Identifies route manipulation, timing irregularities, and data inconsistencies  
-- **Risk Scoring**: 0-100 scale with automatic alert generation (20+ triggers alerts)
-- **Safety First**: AI agent is **OFF by default** - requires manual activation
-- **Token Efficient**: Minimizes API calls to preserve free tier credits
+- **Real-time Analysis**: `/api/ai` evaluates shipment timing + attack simulations
+- **Fallback Resilience**: If OpenRouter fails, local heuristic simulation produces structured result (`source: 'fallback'`) so UI still functions
+- **Risk Scoring**: 0–100; alerts stored only when `riskScore > 20` (Severity: >70 High, >40 Medium, else Low)
+- **Safety First**: Defense agent is **OFF by default** (checked each call) and only runs when explicitly toggled
+- **Token Efficient**: Prompts constrained (`max_tokens ≈ 200`, low temperature) and only invoked when agent active
+- **Activity Logging**: Analysis + threat events recorded in memory/`AgentActivity` pattern for status dashboards
 
 ### 🎛️ Intelligent Control Center
 - **One-Click Toggle**: Enable/disable AI monitoring instantly
@@ -95,21 +97,21 @@ npm run dev
 - **User Management**: Individual agent control per user account
 
 ### 📊 Live Operations Dashboard  
-- **Route Tracking**: Monitor active shipments, drivers, and delivery status
-- **ETA Analysis**: Compare expected vs actual arrival times
-- **Delay Detection**: Visual indicators for routes running behind schedule
-- **Auto-Refresh**: Updates every 30 seconds without page reload
-- **Responsive Design**: Works on desktop, tablet, and mobile devices
+- **Route Tracking**: Active shipments with computed delay badges
+- **Adaptive Polling**: Components adjust polling interval based on tab visibility (e.g. `ShipmentTable` 15s visible / 45s hidden; `AlertFeed` 8s / 30s)
+- **Manual Refresh**: Every panel has a Refresh button for instant updates
+- **Delay Detection**: Delay minutes derived client-side; color-coded status chips
+- **Responsive Design**: Tailwind layout suitable for desktop + mobile
 
 ### 🚨 Advanced Alert System
-- **Severity Classification**: High, Medium, Low risk categorization
-- **Real-time Notifications**: Instant alerts for detected anomalies
-- **Detailed Reporting**: Timestamps, route IDs, and threat descriptions
-- **Dismissible Alerts**: Clean up resolved issues with one click
-- **Alert History**: Persistent storage for audit and compliance
+- **Creation Logic**: Alert persisted only when AI (or fallback) returns `riskScore > 20`
+- **Severity Mapping**: High (>70), Medium (>40), Low (>20) — keep thresholds consistent across code & UI
+- **Structured Data**: `Alert` model stores shipment routeId reference + description
+- **Dismissible**: `/api/alerts` DELETE supports removal; UI updates in place
+- **Analysis Reports**: `/api/analysis-report` generates rich post-incident report (explanations, recommendations, compliance list) consumed by `AnalysisReport` component
 
-### 🧪 Integrated Testing Suite
-Generate realistic test data to validate the platform:
+### 🧪 Integrated Testing & Simulation
+Generate realistic operational + adversarial data:
 
 ```bash
 # Run from project root directory
@@ -120,32 +122,31 @@ npm run simulate:single  # Single route test for quick validation
 ## 📁 Project Architecture
 
 ```
-project-root/
-├── 📱 app/                          # Next.js App Router
-│   ├── 🏠 page.tsx                 # Home page (redirects to dashboard)
-│   ├── 📊 dashboard/               # Main application dashboard
-│   │   └── page.tsx                # Dashboard UI with all components
-│   └── 🔌 api/                     # Backend API endpoints
-│       ├── 🤖 ai/route.ts          # AI analysis engine
-│       ├── ⚙️ agent/toggle/route.ts # Agent control system
-│       ├── 🚛 shipments/route.ts   # Shipment data management
-│       └── 🚨 alerts/route.ts      # Alert system API
-├── 🧩 components/                   # Reusable React components
-│   ├── AgentToggle.tsx             # AI agent control panel
-│   ├── ShipmentTable.tsx           # Live shipment tracking
-│   └── AlertFeed.tsx               # Security alerts display
-├── ✅ tests/                        # Manual/integration test scripts
-│   ├── test-normal.js              # Normal (low-risk) case
-│   ├── test-ai.js                  # High-risk anomaly case
-│   └── final-test.js               # Combined activation & evaluation
-├── 🔗 lib/                         # Shared utilities
-│   └── prisma.ts                   # Database connection client
-├── 🗄️ prisma/                      # Database configuration
-│   └── schema.prisma               # Data models & relationships
-├── 🧪 scripts/                     # Development tools
-│   └── simulateRoutes.ts           # Test data generation
-├── 📝 .env                         # Environment configuration
-└── 📋 package.json                 # Dependencies & scripts
+app/
+   dashboard/page.tsx            # Main dashboard composition
+   api/
+      ai/route.ts                 # AI + fallback risk analysis (creates alerts)
+      agent/toggle/route.ts       # Enable/disable agent (upsert user)
+      agent/status/route.ts       # Real-time in-memory activity/status feed
+      shipments/route.ts          # Shipment CRUD (create + list latest 50)
+      alerts/route.ts             # Alert list/delete (latest 100)
+      analysis-report/route.ts    # Post-incident detailed report generator
+      simulate-attack/route.ts    # Attack scenario injection + optional analysis
+components/
+   AgentToggle.tsx               # Agent activation control
+   AgentStatusMonitor.tsx        # High-frequency activity/status display
+   ShipmentTable.tsx             # Adaptive polling shipment list
+   AlertFeed.tsx                 # Adaptive polling alert list
+   AnalysisReport.tsx            # Modal rendering analysis report
+   SimulateAttackButton.tsx      # Triggers attack scenario & analysis
+lib/
+   prisma.ts                     # Prisma client singleton
+   agentActivity.ts              # Activity logging helpers (in-memory + model pattern)
+prisma/
+   schema.prisma                 # Models (Shipment, Alert, User, AgentActivity)
+scripts/
+   simulateRoutes.ts             # Continuous / single simulation runner
+tests/                          # Scenario scripts (normal, ai, attack)
 ```
 
 ## 🛠️ Available Commands
@@ -169,8 +170,11 @@ npm run db:studio        # Open Prisma Studio (database GUI)
 
 ### Testing & Simulation
 ```bash
-npm run simulate         # Generate continuous test data (60s intervals)
-npm run simulate:single  # Generate single test route for validation
+npm run simulate         # Continuous mixed normal anomalies (60s interval)
+npm run simulate:single  # Single shipment + optional analysis
+node tests/test-normal.js  # Baseline (agent may be off)
+node tests/test-ai.js      # Force analysis path
+node tests/test-attack-sim.js  # Attack scenario simulation
 ```
 
 ## � Security & Compliance
@@ -320,19 +324,20 @@ npm run dev -- -p 3001
 ```
 
 **🚫 "OpenRouter API error"**
-- Verify API key is correct in `.env` file
-- Check your OpenRouter account credits at [openrouter.ai](https://openrouter.ai)
-- Ensure no extra spaces in the API key string
+- Verify API key in `.env`
+- If failing, system should still return fallback analysis (`source: fallback`)
+- Inspect server logs for `[AI]` prefixed messages
 
 **🚫 "No alerts generating"**
-- Ensure AI agent is toggled ON (green status)
-- Wait 10-15 seconds after running simulation  
-- Check browser console for API errors (F12 → Console)
+- Confirm agent is ON (Agent Toggle active + Status Monitor shows Active/Idle)
+- Verify simulation created shipments (`/api/shipments` response not empty)
+- Risk must exceed 20 to persist an alert; inspect AI response JSON
+- Fallback path may yield lower scores; retry or run attack simulation
 
 ### Reset Everything
 ```bash
-# Complete reset if nothing works
-rm -rf node_modules .next
+# Complete reset (Windows PowerShell friendly)
+Remove-Item -Recurse -Force node_modules,.next 2>$null
 npm install
 npx prisma generate
 npx prisma migrate reset

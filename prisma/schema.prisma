@@ -20,6 +20,15 @@ model Shipment {
   expectedETA   DateTime
   actualETA     DateTime?
   routeStatus   String   @default("in-progress")
+  // Optional telemetry fields for richer route context
+  origin        String?
+  destination   String?
+  gpsOnline     Boolean?
+  lastKnownAt   DateTime?
+  lastKnownLat  Float?
+  lastKnownLng  Float?
+  speedKph      Int?
+  headingDeg    Int?
   lastUpdated   DateTime @updatedAt
   createdAt     DateTime @default(now())
 }

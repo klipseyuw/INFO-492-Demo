@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import axios from "axios";
 
 interface Shipment {
@@ -11,6 +11,15 @@ interface Shipment {
   routeStatus: string;
   lastUpdated: string;
   createdAt: string;
+  // Optional telemetry
+  origin?: string | null;
+  destination?: string | null;
+  gpsOnline?: boolean | null;
+  lastKnownAt?: string | null;
+  lastKnownLat?: number | null;
+  lastKnownLng?: number | null;
+  speedKph?: number | null;
+  headingDeg?: number | null;
 }
 
 interface ShipmentTableProps {
@@ -21,6 +30,7 @@ export default function ShipmentTable({ refreshTrigger }: ShipmentTableProps) {
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     fetchShipments();
@@ -87,6 +97,10 @@ export default function ShipmentTable({ refreshTrigger }: ShipmentTableProps) {
     return delayMinutes;
   };
 
+  const toggleExpand = (id: string) => {
+    setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
   if (loading) {
     return (
       <div className="bg-white p-6 rounded-lg shadow-md">
@@ -137,6 +151,9 @@ export default function ShipmentTable({ refreshTrigger }: ShipmentTableProps) {
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Telemetry
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Expected ETA
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -145,44 +162,104 @@ export default function ShipmentTable({ refreshTrigger }: ShipmentTableProps) {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Delay
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Details
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {shipments.map((shipment) => {
                 const delay = calculateDelay(shipment.expectedETA, shipment.actualETA);
+                const lastSeenAgeMin = shipment.lastKnownAt ? Math.round((Date.now() - new Date(shipment.lastKnownAt).getTime()) / 60000) : null;
                 return (
-                  <tr key={shipment.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {shipment.routeId}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {shipment.driverName}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(shipment.routeStatus)}`}>
-                        {shipment.routeStatus}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatDateTime(shipment.expectedETA)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {shipment.actualETA ? formatDateTime(shipment.actualETA) : "In transit"}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {delay !== null ? (
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          delay > 15 ? "bg-red-100 text-red-800" :
-                          delay > 0 ? "bg-yellow-100 text-yellow-800" :
-                          "bg-green-100 text-green-800"
-                        }`}>
-                          {delay > 0 ? `+${delay}m` : `${delay}m`}
+                  <Fragment key={shipment.id}>
+                    <tr key={shipment.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {shipment.routeId}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {shipment.driverName}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(shipment.routeStatus)}`}>
+                          {shipment.routeStatus}
                         </span>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </td>
-                  </tr>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded-full ${shipment.gpsOnline === false ? 'bg-red-100 text-red-800' : shipment.gpsOnline ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                              GPS: {shipment.gpsOnline === false ? 'Offline' : shipment.gpsOnline ? 'Online' : '—'}
+                            </span>
+                            {typeof shipment.speedKph === 'number' && (
+                              <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">{shipment.speedKph} kph</span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-gray-600">
+                            {lastSeenAgeMin !== null ? `Last seen: ${lastSeenAgeMin}m ago` : 'Last seen: —'}
+                            {typeof shipment.lastKnownLat === 'number' && typeof shipment.lastKnownLng === 'number' && (
+                              <span className="ml-2">({shipment.lastKnownLat.toFixed(3)}, {shipment.lastKnownLng.toFixed(3)})</span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatDateTime(shipment.expectedETA)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {shipment.actualETA ? formatDateTime(shipment.actualETA) : "In transit"}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {delay !== null ? (
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            delay > 15 ? "bg-red-100 text-red-800" :
+                            delay > 0 ? "bg-yellow-100 text-yellow-800" :
+                            "bg-green-100 text-green-800"
+                          }`}>
+                            {delay > 0 ? `+${delay}m` : `${delay}m`}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <button
+                          onClick={() => toggleExpand(shipment.id)}
+                          className="px-2 py-1 text-xs border rounded hover:bg-gray-50"
+                        >
+                          {expanded[shipment.id] ? 'Hide' : 'Details'}
+                        </button>
+                      </td>
+                    </tr>
+                    {expanded[shipment.id] && (
+                      <tr className="bg-gray-50">
+                        <td colSpan={8} className="px-6 py-3">
+                          <div className="text-sm text-gray-800 grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                              <div className="text-gray-500 text-xs">Route</div>
+                              <div>{shipment.origin || '—'} → {shipment.destination || '—'}</div>
+                            </div>
+                            <div>
+                              <div className="text-gray-500 text-xs">Last Seen</div>
+                              <div>
+                                {shipment.lastKnownAt ? new Date(shipment.lastKnownAt).toLocaleString() : '—'}
+                                {typeof shipment.lastKnownLat === 'number' && typeof shipment.lastKnownLng === 'number' && (
+                                  <span className="ml-2 text-xs text-gray-600">({shipment.lastKnownLat.toFixed(4)}, {shipment.lastKnownLng.toFixed(4)})</span>
+                                )}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-gray-500 text-xs">Heading / Speed</div>
+                              <div>
+                                {typeof shipment.headingDeg === 'number' ? `${shipment.headingDeg}°` : '—'}
+                                {typeof shipment.speedKph === 'number' ? ` @ ${shipment.speedKph} kph` : ''}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>

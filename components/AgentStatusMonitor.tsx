@@ -16,7 +16,7 @@ interface AgentActivity {
   startTime: string;
   endTime: string | null;
   duration: number | null;
-  metadata: { riskScore?: number } | null;
+  metadata: { riskScore?: number | string } | null;
 }
 
 interface AgentStatus {
@@ -41,20 +41,18 @@ export default function AgentStatusMonitor({ userId, agentActive }: AgentStatusP
 
   useEffect(() => {
     fetchAgentStatus();
-    
     // Refresh every 1.5 seconds for real-time monitoring
     const interval = setInterval(() => {
       fetchAgentStatus();
     }, 1500);
-
     return () => clearInterval(interval);
   }, [userId, agentActive]);
 
   const fetchAgentStatus = async () => {
     try {
-      const response = await axios.get(`/api/agent/status?userId=${userId}&limit=5`);
+      // Increase limit to 20 to show more activities
+      const response = await axios.get(`/api/agent/status?userId=${userId}&limit=20`);
       const data = response.data;
-      
       setStatus(data.agentStatus);
       setActivities(data.activities || []);
       setStatistics(data.statistics || {});
@@ -263,17 +261,26 @@ export default function AgentStatusMonitor({ userId, agentActive }: AgentStatusP
                     {activity.duration && <span>Duration: {formatDuration(activity.duration)}</span>}
                     {activity.shipment && <span>Shipment: {activity.shipment}</span>}
                   </div>
-                  {activity.metadata?.riskScore && (
+                  {activity.status === 'failed' && (activity.metadata as any)?.error === 'ai_unavailable' && (
                     <div className="mt-2 text-xs">
-                      <span className={`px-2 py-1 rounded ${
-                        activity.metadata.riskScore > 70 ? 'bg-red-100 text-red-800' :
-                        activity.metadata.riskScore > 40 ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-green-100 text-green-800'
-                      }`}>
-                        Risk Score: {activity.metadata.riskScore}/100
-                      </span>
+                      <span className="px-2 py-1 rounded bg-red-100 text-red-800">AI analysis unavailable</span>
                     </div>
                   )}
+                  {(() => {
+                    const scoreRaw = activity.metadata?.riskScore;
+                    const score = typeof scoreRaw === 'number' ? scoreRaw : Number(scoreRaw);
+                    if (!Number.isFinite(score)) return null;
+                    const badgeClass = score > 70 ? 'bg-red-100 text-red-800'
+                      : score > 40 ? 'bg-yellow-100 text-yellow-800'
+                      : 'bg-green-100 text-green-800';
+                    return (
+                      <div className="mt-2 text-xs">
+                        <span className={`px-2 py-1 rounded ${badgeClass}`}>
+                          Risk Score: {score}/100
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             ))}

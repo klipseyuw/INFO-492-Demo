@@ -4,7 +4,7 @@ import { config } from "dotenv";
 // Load environment variables
 config();
 
-const API_BASE_URL = process.env.NEXTAUTH_URL || "http://localhost:3001";
+const API_BASE_URL = process.env.NEXTAUTH_URL || "http://localhost:3000";
 const DEMO_USER_ID = "user-1";
 
 // Sample driver names for realistic simulation
@@ -23,6 +23,15 @@ interface ShipmentData {
   expectedETA: string;
   actualETA?: string;
   routeStatus: string;
+  // Optional telemetry (not persisted in DB; used for AI context only)
+  origin?: string;
+  destination?: string;
+  gpsOnline?: boolean;
+  lastKnownLat?: number;
+  lastKnownLng?: number;
+  lastKnownAt?: string;
+  speedKph?: number;
+  headingDeg?: number;
 }
 
 function generateRandomRoute(): string {
@@ -84,12 +93,37 @@ function generateShipmentData(): ShipmentData {
     }
   }
 
+  // Generate lightweight telemetry
+  const cities = [
+    'Seattle, WA', 'Tacoma, WA', 'Spokane, WA', 'Portland, OR', 'Boise, ID',
+    'Missoula, MT', 'Yakima, WA', 'Eugene, OR', 'Salem, OR', 'Bellingham, WA'
+  ];
+  const origin = cities[Math.floor(Math.random() * cities.length)];
+  let destination = cities[Math.floor(Math.random() * cities.length)];
+  if (destination === origin) {
+    destination = cities[(cities.indexOf(origin) + 3) % cities.length];
+  }
+  const gpsOnline = Math.random() < 0.9; // 10% chance GPS offline
+  const lastKnownLat = 45 + Math.random() * 5; // rough PNW band
+  const lastKnownLng = -123 + Math.random() * 5;
+  const lastKnownAt = new Date(now.getTime() - Math.floor(Math.random() * 60) * 60 * 1000).toISOString();
+  const speedKph = Math.max(0, Math.round(80 + (Math.random() - 0.5) * 60)); // 50-110 kph approx
+  const headingDeg = Math.floor(Math.random() * 360);
+
   return {
     routeId: generateRandomRoute(),
     driverName: generateRandomDriver(),
     expectedETA: expectedETA.toISOString(),
     actualETA: actualETA?.toISOString(),
-    routeStatus
+    routeStatus,
+    origin,
+    destination,
+    gpsOnline,
+    lastKnownLat,
+    lastKnownLng,
+    lastKnownAt,
+    speedKph,
+    headingDeg
   };
 }
 

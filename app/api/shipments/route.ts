@@ -24,7 +24,22 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const { routeId, driverName, expectedETA, actualETA, routeStatus } = await req.json();
+    const {
+      routeId,
+      driverName,
+      expectedETA,
+      actualETA,
+      routeStatus,
+      // Optional telemetry fields
+      origin,
+      destination,
+      gpsOnline,
+      lastKnownAt,
+      lastKnownLat,
+      lastKnownLng,
+      speedKph,
+      headingDeg
+    } = await req.json();
 
     if (!routeId || !driverName || !expectedETA) {
       return NextResponse.json(
@@ -33,14 +48,23 @@ export async function POST(req: Request) {
       );
     }
 
+    // Cast to any to avoid transient Prisma type mismatch until prisma generate refreshes types
     const shipment = await prisma.shipment.create({
-      data: {
+      data: ({
         routeId,
         driverName,
         expectedETA: new Date(expectedETA),
         actualETA: actualETA ? new Date(actualETA) : null,
         routeStatus: routeStatus || "in-progress",
-      },
+        origin: origin || null,
+        destination: destination || null,
+        gpsOnline: typeof gpsOnline === 'boolean' ? gpsOnline : null,
+        lastKnownAt: lastKnownAt ? new Date(lastKnownAt) : null,
+        lastKnownLat: typeof lastKnownLat === 'number' ? lastKnownLat : null,
+        lastKnownLng: typeof lastKnownLng === 'number' ? lastKnownLng : null,
+        speedKph: typeof speedKph === 'number' ? Math.round(speedKph) : null,
+        headingDeg: typeof headingDeg === 'number' ? Math.round(headingDeg) : null,
+      } as any),
     });
 
     return NextResponse.json({

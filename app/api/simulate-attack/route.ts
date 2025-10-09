@@ -39,7 +39,18 @@ const ATTACK_SCENARIOS = [
 
 export async function POST(req: Request) {
   try {
-    const { userId } = await req.json();
+    // Parse JSON safely to avoid hard failures on malformed bodies
+    const raw = await req.text();
+    let userId: string | undefined;
+    try {
+      const parsed = JSON.parse(raw || '{}');
+      userId = parsed.userId;
+    } catch (e) {
+      return NextResponse.json({ error: 'Invalid JSON', message: 'Request body must be valid JSON with a userId string.' }, { status: 400 });
+    }
+    if (!userId || typeof userId !== 'string') {
+      return NextResponse.json({ error: 'Missing userId', message: 'Provide a valid userId in the JSON body.' }, { status: 400 });
+    }
     
     // Check if user exists and get agent status
     const user = await prisma.user.findUnique({
@@ -59,17 +70,50 @@ export async function POST(req: Request) {
     const expectedETA = new Date(baseTime.getTime() + (2 * 60 * 60 * 1000)); // 2 hours from now
     const actualETA = new Date(expectedETA.getTime() + (scenario.delayMinutes * 60 * 1000)); // Add delay
 
+    // Telemetry generation for attack scenarios
+    const cities = [
+      'Seattle, WA', 'Tacoma, WA', 'Spokane, WA', 'Portland, OR', 'Boise, ID',
+      'Missoula, MT', 'Yakima, WA', 'Eugene, OR', 'Salem, OR', 'Bellingham, WA'
+    ];
+    const origin = cities[Math.floor(Math.random() * cities.length)];
+    let destination = cities[Math.floor(Math.random() * cities.length)];
+    if (destination === origin) destination = cities[(cities.indexOf(origin) + 1) % cities.length];
+    let gpsOnline: boolean | null = true;
+    let lastKnownAt: Date | null = new Date(baseTime.getTime() - 10 * 60 * 1000);
+    let lastKnownLat: number | null = 45 + Math.random() * 5;
+    let lastKnownLng: number | null = -123 + Math.random() * 5;
+    let speedKph: number | null = Math.max(0, Math.round(80 + (Math.random() - 0.5) * 40));
+    let headingDeg: number | null = Math.floor(Math.random() * 360);
+
+    if (scenario.type === 'Cyber Attack') {
+      gpsOnline = false;
+      lastKnownAt = new Date(baseTime.getTime() - 40 * 60 * 1000);
+      speedKph = 0;
+    } else if (scenario.type === 'Cargo Tampering') {
+      speedKph = 0;
+      lastKnownAt = new Date(baseTime.getTime() - 45 * 60 * 1000);
+      gpsOnline = true;
+    }
+
     // Create the shipment with attack scenario - this is just suspicious data, no alert yet
     // The defense agent should detect this as an anomaly
     const shipment = await prisma.shipment.create({
-      data: {
+      data: ({
         routeId,
         driverName,
         expectedETA,
         actualETA,
         routeStatus: "in-progress", // Don't mark as compromised - let the AI detect it
-        lastUpdated: new Date()
-      }
+        lastUpdated: new Date(),
+        origin,
+        destination,
+        gpsOnline,
+        lastKnownAt,
+        lastKnownLat,
+        lastKnownLng,
+        speedKph,
+        headingDeg,
+      } as any)
     });
 
     // Activity log for creation
@@ -95,7 +139,15 @@ export async function POST(req: Request) {
             actualETA: actualETA.toISOString(),
             userId,
             driverName,
-            attackScenario: scenario // Pass scenario for enhanced analysis
+            attackScenario: scenario, // Pass scenario for enhanced analysis
+            origin,
+            destination,
+            gpsOnline,
+            lastKnownAt: lastKnownAt?.toISOString() || undefined,
+            lastKnownLat,
+            lastKnownLng,
+            speedKph,
+            headingDeg,
           },
           {
             headers: { "Content-Type": "application/json" }
@@ -103,9 +155,11 @@ export async function POST(req: Request) {
         );
         
         defenseAnalysis = defenseResponse.data;
-      } catch (error) {
+      } catch (error: any) {
+        const status = error?.response?.status;
+        const data = error?.response?.data;
         console.error("Defense agent analysis failed:", error);
-        defenseAnalysis = { message: "Defense agent failed to analyze shipment" };
+        defenseAnalysis = { message: "Defense agent failed to analyze shipment", status, details: data };
       }
     }
 
