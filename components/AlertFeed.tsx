@@ -71,13 +71,13 @@ export default function AlertFeed({ refreshTrigger }: AlertFeedProps) {
   const getSeverityColor = (severity: string) => {
     switch (severity.toLowerCase()) {
       case "high":
-        return "bg-red-100 text-red-800 border-red-200";
+        return "bg-red-900/20 text-red-400 border-red-500/30 font-semibold";
       case "medium":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+        return "bg-yellow-900/20 text-yellow-400 border-yellow-500/30";
       case "low":
-        return "bg-blue-100 text-blue-800 border-blue-200";
+        return "bg-blue-900/20 text-blue-400 border-blue-500/30";
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
+        return "bg-gray-900/20 text-gray-400 border-gray-500/30";
     }
   };
 
@@ -100,8 +100,8 @@ export default function AlertFeed({ refreshTrigger }: AlertFeedProps) {
 
   if (loading) {
     return (
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h3 className="text-lg font-semibold mb-4">Security Alerts</h3>
+      <div className="card text-[#F4F6FF] p-6">
+        <h3 className="text-lg font-semibold mb-4 text-slate-100 font-['Rajdhani']">Security Alerts</h3>
         <div className="animate-pulse space-y-4">
           {[...Array(3)].map((_, i) => (
             <div key={i} className="h-20 bg-gray-200 rounded"></div>
@@ -112,16 +112,16 @@ export default function AlertFeed({ refreshTrigger }: AlertFeedProps) {
   }
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md">
+    <div className="bg-[#201C3D]/85 border-[#3C3470]/50 p-6 rounded-lg">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Security Alerts</h3>
+        <h3 className="text-lg font-semibold text-[#F4F6FF] font-['Rajdhani'] text-glow">Security Alerts</h3>
         <div className="flex items-center space-x-2">
-          <span className="text-sm text-gray-600">
+          <span className="text-sm text-[#D0D6EB]">
             {alerts.length} alert{alerts.length !== 1 ? 's' : ''}
           </span>
           <button
             onClick={fetchAlerts}
-            className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="px-3 py-1 text-sm bg-gradient-to-r from-[#3B82F6] to-[#06B6D4] text-white rounded shadow-md hover:shadow-blue-500/40 transition-all duration-200 hover:brightness-110"
           >
             Refresh
           </button>
@@ -129,16 +129,16 @@ export default function AlertFeed({ refreshTrigger }: AlertFeedProps) {
       </div>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-100 border border-red-300 rounded-md">
-          <p className="text-red-700 text-sm">{error}</p>
+        <div className="mb-4 p-3 bg-red-900/20 border border-red-500/30 rounded-md">
+          <p className="text-red-400 text-sm">{error}</p>
         </div>
       )}
 
       {alerts.length === 0 ? (
         <div className="text-center py-8">
           <div className="text-4xl mb-2">🛡️</div>
-          <p className="text-gray-500">No security alerts detected</p>
-          <p className="text-sm text-gray-400 mt-1">
+          <p className="text-[#D0D6EB]">No security alerts detected</p>
+          <p className="text-sm text-[#D0D6EB] mt-1">
             Your logistics operations are secure
           </p>
         </div>
@@ -158,9 +158,9 @@ export default function AlertFeed({ refreshTrigger }: AlertFeedProps) {
                     </span>
                   </div>
                   
-                  <p className="text-gray-900 mb-2">{alert.description}</p>
+                  <p className="text-[#F4F6FF] mb-2">{alert.description}</p>
                   
-                  <div className="flex justify-between items-center text-sm text-gray-600">
+                  <div className="flex justify-between items-center text-sm text-[#D0D6EB]">
                     <span>Route: {alert.shipmentId}</span>
                     <span>{formatDateTime(alert.createdAt)}</span>
                   </div>
@@ -168,7 +168,7 @@ export default function AlertFeed({ refreshTrigger }: AlertFeedProps) {
                 
                 <button
                   onClick={() => deleteAlert(alert.id)}
-                  className="ml-4 text-gray-400 hover:text-gray-600 transition-colors"
+                  className="ml-4 text-[#D0D6EB] hover:text-[#F4F6FF] transition-colors"
                   title="Dismiss alert"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

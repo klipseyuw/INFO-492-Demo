@@ -136,7 +136,7 @@ export default function AgentStatusMonitor({ userId, agentActive }: AgentStatusP
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
+      <div className="card p-6 border-l-4 border-blue-500">
         <div className="animate-pulse space-y-4">
           <div className="h-4 bg-gray-200 rounded w-3/4"></div>
           <div className="h-4 bg-gray-200 rounded w-1/2"></div>
@@ -147,13 +147,13 @@ export default function AgentStatusMonitor({ userId, agentActive }: AgentStatusP
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md border-l-4 border-blue-500">
+    <div className="card border-l-4 border-blue-500">
       {/* Header */}
-      <div className="p-6 border-b border-gray-200">
+      <div className="p-6 border-b border-slate-600">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Agent Activity Monitor</h3>
-            <p className="text-sm text-gray-600">Real-time defense agent status and activity</p>
+            <h3 className="text-lg font-semibold text-[#F4F6FF] font-['Rajdhani'] text-glow">Agent Activity Monitor</h3>
+            <p className="text-sm text-[#D0D6EB]">Real-time defense agent status and activity</p>
           </div>
           <div className="flex items-center space-x-2">
             {status && (
@@ -171,13 +171,13 @@ export default function AgentStatusMonitor({ userId, agentActive }: AgentStatusP
 
         {/* Current Status */}
         {status && (
-          <div className="bg-gray-50 rounded-lg p-4">
+          <div className="bg-slate-700/50 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-gray-900">Current Task:</p>
-                <p className="text-sm text-gray-600">{status.currentTask}</p>
+                <p className="font-medium text-[#F4F6FF]">Current Task:</p>
+                <p className="text-sm text-[#D0D6EB]">{status.currentTask}</p>
                 {status.currentActivity && (
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-slate-400 mt-1">
                     Started: {new Date(status.currentActivity.startTime).toLocaleTimeString()}
                   </p>
                 )}
@@ -185,7 +185,7 @@ export default function AgentStatusMonitor({ userId, agentActive }: AgentStatusP
               {agentActive && (
                 <button
                   onClick={triggerSystemCheck}
-                  className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                  className="px-3 py-1 bg-gradient-to-r from-[#3B82F6] to-[#06B6D4] text-white text-xs rounded shadow-md hover:shadow-blue-500/40 transition-all duration-200 hover:brightness-110"
                 >
                   System Check
                 </button>
@@ -196,16 +196,16 @@ export default function AgentStatusMonitor({ userId, agentActive }: AgentStatusP
       </div>
 
       {/* Statistics */}
-      <div className="p-6 border-b border-gray-200">
-        <h4 className="font-medium text-gray-900 mb-3">Performance Statistics</h4>
+      <div className="p-6 border-b border-slate-600">
+        <h4 className="font-medium text-[#F4F6FF] mb-3">Performance Statistics</h4>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="text-center">
             <div className="text-2xl font-bold text-blue-600">{statistics.totalAnalyses || 0}</div>
-            <div className="text-xs text-gray-500">Total Analyses</div>
+            <div className="text-xs text-slate-400">Total Analyses</div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-red-600">{statistics.threatsDetected || 0}</div>
-            <div className="text-xs text-gray-500">Threats Detected</div>
+            <div className="text-xs text-slate-400">Threats Detected</div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-green-600">
@@ -213,18 +213,18 @@ export default function AgentStatusMonitor({ userId, agentActive }: AgentStatusP
                 ? formatDuration(Number(statistics.avgAnalysisTime)) 
                 : '0ms'}
             </div>
-            <div className="text-xs text-gray-500">Avg Analysis Time</div>
+            <div className="text-xs text-slate-400">Avg Analysis Time</div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-purple-600">{statistics.agentUptime || 'Inactive'}</div>
-            <div className="text-xs text-gray-500">Agent Status</div>
+            <div className="text-xs text-slate-400">Agent Status</div>
           </div>
         </div>
       </div>
 
       {/* Recent Activities */}
       <div className="p-6">
-        <h4 className="font-medium text-gray-900 mb-3">Recent Activity</h4>
+        <h4 className="font-medium text-[#F4F6FF] mb-3">Recent Activity</h4>
         
         {error && (
           <div className="text-red-600 text-sm mb-4">
@@ -233,7 +233,7 @@ export default function AgentStatusMonitor({ userId, agentActive }: AgentStatusP
         )}
 
         {activities.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-[#D0D6EB]">
             <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
@@ -243,11 +243,11 @@ export default function AgentStatusMonitor({ userId, agentActive }: AgentStatusP
         ) : (
           <div className="space-y-3">
             {activities.map((activity) => (
-              <div key={activity.id} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+              <div key={activity.id} className="flex items-start space-x-3 p-3 bg-slate-700/50 rounded-lg">
                 {getActivityIcon(activity.type)}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-gray-900">{activity.description}</p>
+                    <p className="text-sm font-medium text-[#F4F6FF]">{activity.description}</p>
                     <span className={`px-2 py-1 text-xs rounded ${
                       activity.status === 'completed' ? 'bg-green-100 text-green-800' :
                       activity.status === 'failed' ? 'bg-red-100 text-red-800' :
@@ -256,7 +256,7 @@ export default function AgentStatusMonitor({ userId, agentActive }: AgentStatusP
                       {activity.status}
                     </span>
                   </div>
-                  <div className="mt-1 flex items-center space-x-4 text-xs text-gray-500">
+                  <div className="mt-1 flex items-center space-x-4 text-xs text-slate-400">
                     <span>{new Date(activity.startTime).toLocaleTimeString()}</span>
                     {activity.duration && <span>Duration: {formatDuration(activity.duration)}</span>}
                     {activity.shipment && <span>Shipment: {activity.shipment}</span>}
