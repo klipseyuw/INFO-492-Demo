@@ -10,7 +10,7 @@ A cutting-edge cybersecurity defense platform for warehouse logistics operations
 - **Backend**: Next.js serverless API routes (`app/api/*`)
 - **Database**: SQLite for dev (see `prisma/schema.prisma`) — can swap to Postgres via `DATABASE_URL` in prod
 - **ORM**: Prisma Client
-- **AI Engine**: OpenRouter API (model: `deepseek/deepseek-chat-v3.1:free`) with local fallback simulation
+- **AI Engine**: OpenRouter API (model: `z-ai/glm-4.5-air:free`) with robust local fallback simulation
 - **Runtime**: Node.js 18+ with Turbopack for fast development
 - **Deployment**: Vercel (recommended) / Docker compatible
 
@@ -59,6 +59,7 @@ npx prisma migrate dev --name init
 npx prisma generate
 ```
 
+
 ### Step 4: Configure OpenRouter API
 
 The `.env` file already contains a working OpenRouter API key for testing. For production:
@@ -83,29 +84,30 @@ npm run dev
 ## 🛡️ Platform Features
 
 ### 🤖 AI-Powered Threat Detection
-- **Real-time Analysis**: `/api/ai` evaluates shipment timing + attack simulations
-- **Fallback Resilience**: If OpenRouter fails, local heuristic simulation produces structured result (`source: 'fallback'`) so UI still functions
-- **Risk Scoring**: 0–100; alerts stored only when `riskScore > 20` (Severity: >70 High, >40 Medium, else Low)
-- **Safety First**: Defense agent is **OFF by default** (checked each call) and only runs when explicitly toggled
-- **Token Efficient**: Prompts constrained (`max_tokens ≈ 200`, low temperature) and only invoked when agent active
-- **Activity Logging**: Analysis + threat events recorded in memory/`AgentActivity` pattern for status dashboards
+- **Real-time Analysis**: `/api/ai` evaluates shipment timing and attack simulations, logs all analysis steps with `[AI]` prefix
+- **Fallback Resilience**: If OpenRouter fails or keys are missing, local simulation produces a compact, structured result (`source: 'fallback'`, `max_tokens ≈ 200`, `temperature: 0.4`)
+- **Risk Scoring**: 0–100; alerts are persisted only when `riskScore > 20` (Severity: >70 High, >40 Medium, else Low)
+- **Safety First**: Defense agent is **OFF by default** and must be explicitly enabled (never auto-enabled; checked before every AI call)
+- **Defensive Parsing**: Robust JSON extraction from AI responses; strips code fences, extracts first object, try/catch fallback
+- **Token Efficient**: Prompts are compact and only invoked when agent is active
+- **Activity Logging**: Analysis and threat events recorded in memory/`AgentActivity` pattern for status dashboards; extendable with new `type` values
 
 ### 🎛️ Intelligent Control Center
-- **One-Click Toggle**: Enable/disable AI monitoring instantly
-- **Persistent State**: Agent status saved to database across sessions
-- **Visual Indicators**: Real-time status with color-coded feedback
+- **One-Click Toggle**: Enable/disable AI monitoring instantly (see `AgentToggle`)
+- **Persistent State**: Agent status saved to database across sessions; always OFF by default
+- **Visual Indicators**: Real-time status with color-coded feedback (see `AgentStatusMonitor`)
 - **User Management**: Individual agent control per user account
 
-### 📊 Live Operations Dashboard  
+### 📊 Live Operations Dashboard
 - **Route Tracking**: Active shipments with computed delay badges
-- **Adaptive Polling**: Components adjust polling interval based on tab visibility (e.g. `ShipmentTable` 15s visible / 45s hidden; `AlertFeed` 8s / 30s)
+- **Adaptive Polling**: All live panels (e.g. `ShipmentTable`, `AlertFeed`, `AgentStatusMonitor`) adjust polling interval based on tab visibility; keep cadence consistent for new panels
 - **Manual Refresh**: Every panel has a Refresh button for instant updates
 - **Delay Detection**: Delay minutes derived client-side; color-coded status chips
 - **Responsive Design**: Tailwind layout suitable for desktop + mobile
 
 ### 🚨 Advanced Alert System
-- **Creation Logic**: Alert persisted only when AI (or fallback) returns `riskScore > 20`
-- **Severity Mapping**: High (>70), Medium (>40), Low (>20) — keep thresholds consistent across code & UI
+- **Creation Logic**: Alert is persisted only when AI (or fallback) returns `riskScore > 20` (never below)
+- **Severity Mapping**: High (>70), Medium (>40), Low (≤40) — keep thresholds consistent across code, UI, and tests
 - **Structured Data**: `Alert` model stores shipment routeId reference + description
 - **Dismissible**: `/api/alerts` DELETE supports removal; UI updates in place
 - **Analysis Reports**: `/api/analysis-report` generates rich post-incident report (explanations, recommendations, compliance list) consumed by `AnalysisReport` component
@@ -126,38 +128,45 @@ npm run simulate         # Continuous simulation (60-second intervals)
 npm run simulate:single  # Single route test for quick validation
 ```
 
-## 📁 Project Architecture
+
+## 📁 Project Architecture & File Map
+
 
 ```
-app/
-   dashboard/page.tsx            # Main dashboard composition
-   api/
-      ai/route.ts                 # AI + fallback risk analysis (creates alerts)
-      agent/toggle/route.ts       # Enable/disable agent (upsert user)
-      agent/status/route.ts       # Real-time in-memory activity/status feed
-      shipments/route.ts          # Shipment CRUD (create + list latest 50)
-      alerts/route.ts             # Alert list/delete (latest 100)
-      alerts/predictive/route.ts  # Predictive warning alert generation
-      schedule-predict/route.ts   # Delay prediction with linear regression
-      analysis-report/route.ts    # Post-incident detailed report generator
-      simulate-attack/route.ts    # Attack scenario injection + optional analysis
-components/
-   AgentToggle.tsx               # Agent activation control
-   AgentStatusMonitor.tsx        # High-frequency activity/status display
-   ShipmentTable.tsx             # Adaptive polling shipment list (now with predicted delays)
-   AlertFeed.tsx                 # Adaptive polling alert list (supports Predictive Warnings)
-   DelayPredictionChart.tsx      # Predictive analytics visualization
-   AnalysisReport.tsx            # Modal rendering analysis report
-   SimulateAttackButton.tsx      # Triggers attack scenario & analysis
-lib/
-   prisma.ts                     # Prisma client singleton
-   agentActivity.ts              # Activity logging helpers (in-memory + model pattern)
-prisma/
-   schema.prisma                 # Models (Shipment with predictedDelay, Alert, User, AgentActivity)
-scripts/
-   simulateRoutes.ts             # Continuous / single simulation runner
-tests/                          # Scenario scripts (normal, ai, attack)
+app/api/ai/route.ts                # Risk analysis (OpenRouter + fallback)
+app/api/agent/toggle/route.ts      # Upsert user, toggle agentActive
+app/api/agent/status/route.ts      # Agent status + in-memory activity log
+app/api/shipments/route.ts         # Create/list shipments (latest 50)
+app/api/alerts/route.ts            # List/delete alerts (latest 100)
+app/api/alerts/predictive/route.ts # Predictive warning alert generation
+app/api/analysis-report/route.ts   # Builds incident report from alert+shipment
+app/api/simulate-attack/route.ts   # Simulate suspicious shipment + analysis
+components/AgentToggle.tsx         # Agent activation control
+components/AgentStatusMonitor.tsx  # Live activity/status display
+components/ShipmentTable.tsx       # Adaptive polling shipment list
+components/AlertFeed.tsx           # Adaptive polling alert list
+components/AnalysisReport.tsx      # Modal for analysis report
+components/SimulateAttackButton.tsx# Triggers attack scenario & analysis
+lib/prisma.ts                      # Prisma client singleton
+lib/agentActivity.ts               # In-memory activity log helpers
+prisma/schema.prisma               # Models: Shipment, Alert, User, AgentActivity
+scripts/simulateRoutes.ts          # Simulation runner
+scripts/clearData.ts               # Data reset script
+tests/                             # Scenario scripts (normal, ai, attack)
 ```
+## 🧩 Safe Extension Guidelines
+
+- Before any AI call: always validate agent activation and required fields; keep prompts compact
+- Never auto-enable the agent; must be toggled explicitly
+- If introducing new severity levels, update alert creation, UI badge mapping, and tests
+- Avoid long-running loops in API routes; use client polling or external scripts
+- Never log secrets; degrade gracefully if keys are missing
+- Use `[AI]` log prefixes for notable analysis steps
+## 📝 Conventions & Error Handling
+
+- API success: `{ success: true, ... }`; errors: `{ error, message? }` with proper status codes
+- Defensive AI JSON parsing: strip code fences, extract first `{...}`, try/catch, then fallback
+- Keep responses lean; avoid storing raw prompts/large payloads in DB
 
 ## 🛠️ Available Commands
 
