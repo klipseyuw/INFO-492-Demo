@@ -110,6 +110,13 @@ npm run dev
 - **Dismissible**: `/api/alerts` DELETE supports removal; UI updates in place
 - **Analysis Reports**: `/api/analysis-report` generates rich post-incident report (explanations, recommendations, compliance list) consumed by `AnalysisReport` component
 
+### 🔮 Predictive Scheduling Defense
+- **Delay Prediction**: `/api/schedule-predict` uses linear regression and moving averages to forecast delivery delays
+- **Deviation Detection**: Compares actual vs predicted delays and triggers alerts when deviation exceeds threshold
+- **Real-time Analysis**: Updates predictions based on historical shipment data and current route conditions
+- **Confidence Scoring**: Provides confidence levels (high/medium/low) based on available data points
+- **Predictive Alerts**: New "Predictive Warning" alert type with purple styling and 🔮 icon
+
 ### 🧪 Integrated Testing & Simulation
 Generate realistic operational + adversarial data:
 
@@ -130,20 +137,23 @@ app/
       agent/status/route.ts       # Real-time in-memory activity/status feed
       shipments/route.ts          # Shipment CRUD (create + list latest 50)
       alerts/route.ts             # Alert list/delete (latest 100)
+      alerts/predictive/route.ts  # Predictive warning alert generation
+      schedule-predict/route.ts   # Delay prediction with linear regression
       analysis-report/route.ts    # Post-incident detailed report generator
       simulate-attack/route.ts    # Attack scenario injection + optional analysis
 components/
    AgentToggle.tsx               # Agent activation control
    AgentStatusMonitor.tsx        # High-frequency activity/status display
-   ShipmentTable.tsx             # Adaptive polling shipment list
-   AlertFeed.tsx                 # Adaptive polling alert list
+   ShipmentTable.tsx             # Adaptive polling shipment list (now with predicted delays)
+   AlertFeed.tsx                 # Adaptive polling alert list (supports Predictive Warnings)
+   DelayPredictionChart.tsx      # Predictive analytics visualization
    AnalysisReport.tsx            # Modal rendering analysis report
    SimulateAttackButton.tsx      # Triggers attack scenario & analysis
 lib/
    prisma.ts                     # Prisma client singleton
    agentActivity.ts              # Activity logging helpers (in-memory + model pattern)
 prisma/
-   schema.prisma                 # Models (Shipment, Alert, User, AgentActivity)
+   schema.prisma                 # Models (Shipment with predictedDelay, Alert, User, AgentActivity)
 scripts/
    simulateRoutes.ts             # Continuous / single simulation runner
 tests/                          # Scenario scripts (normal, ai, attack)

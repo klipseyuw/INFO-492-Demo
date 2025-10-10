@@ -29,6 +29,8 @@ model Shipment {
   lastKnownLng  Float?
   speedKph      Int?
   headingDeg    Int?
+  // Predictive scheduling fields
+  predictedDelay Float?  // Predicted delay in minutes
   lastUpdated   DateTime @updatedAt
   createdAt     DateTime @default(now())
 }

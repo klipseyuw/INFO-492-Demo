@@ -6,6 +6,25 @@ export async function GET(req: Request) {
     const shipments = await prisma.shipment.findMany({
       orderBy: { lastUpdated: 'desc' },
       take: 50, // Limit to 50 most recent shipments
+      select: {
+        id: true,
+        routeId: true,
+        driverName: true,
+        expectedETA: true,
+        actualETA: true,
+        routeStatus: true,
+        origin: true,
+        destination: true,
+        gpsOnline: true,
+        lastKnownAt: true,
+        lastKnownLat: true,
+        lastKnownLng: true,
+        speedKph: true,
+        headingDeg: true,
+        predictedDelay: true,
+        lastUpdated: true,
+        createdAt: true,
+      },
     });
 
     return NextResponse.json({

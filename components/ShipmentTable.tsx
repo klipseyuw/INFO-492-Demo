@@ -20,6 +20,8 @@ interface Shipment {
   lastKnownLng?: number | null;
   speedKph?: number | null;
   headingDeg?: number | null;
+  // Predictive scheduling
+  predictedDelay?: number | null;
 }
 
 interface ShipmentTableProps {
@@ -162,6 +164,9 @@ export default function ShipmentTable({ refreshTrigger }: ShipmentTableProps) {
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
                   Delay
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                  Predicted
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Details
                 </th>
@@ -223,6 +228,19 @@ export default function ShipmentTable({ refreshTrigger }: ShipmentTableProps) {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {shipment.predictedDelay !== null ? (
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            shipment.predictedDelay > 30 ? "bg-purple-100 text-purple-800" :
+                            shipment.predictedDelay > 15 ? "bg-orange-100 text-orange-800" :
+                            "bg-blue-100 text-blue-800"
+                          }`}>
+                            {shipment.predictedDelay > 0 ? `+${Math.round(shipment.predictedDelay)}m` : `${Math.round(shipment.predictedDelay)}m`}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <button
                           onClick={() => toggleExpand(shipment.id)}
                           className="px-2 py-1 text-xs border rounded hover:bg-slate-600 text-[#F4F6FF]"
@@ -233,7 +251,7 @@ export default function ShipmentTable({ refreshTrigger }: ShipmentTableProps) {
                     </tr>
                     {expanded[shipment.id] && (
                       <tr className="bg-slate-700/20">
-                        <td colSpan={8} className="px-6 py-3">
+                        <td colSpan={9} className="px-6 py-3">
                           <div className="text-sm text-[#F4F6FF] grid grid-cols-1 md:grid-cols-3 gap-3">
                             <div>
                               <div className="text-slate-400 text-xs">Route</div>

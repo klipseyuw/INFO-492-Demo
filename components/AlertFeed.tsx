@@ -68,7 +68,12 @@ export default function AlertFeed({ refreshTrigger }: AlertFeedProps) {
     }
   };
 
-  const getSeverityColor = (severity: string) => {
+  const getSeverityColor = (severity: string, type?: string) => {
+    // Special styling for predictive warnings
+    if (type === "Predictive Warning") {
+      return "bg-purple-900/20 text-purple-400 border-purple-500/30 font-semibold";
+    }
+    
     switch (severity.toLowerCase()) {
       case "high":
         return "bg-red-900/20 text-red-400 border-red-500/30 font-semibold";
@@ -81,7 +86,12 @@ export default function AlertFeed({ refreshTrigger }: AlertFeedProps) {
     }
   };
 
-  const getSeverityIcon = (severity: string) => {
+  const getSeverityIcon = (severity: string, type?: string) => {
+    // Special icon for predictive warnings
+    if (type === "Predictive Warning") {
+      return "🔮";
+    }
+    
     switch (severity.toLowerCase()) {
       case "high":
         return "🚨";
@@ -147,12 +157,12 @@ export default function AlertFeed({ refreshTrigger }: AlertFeedProps) {
           {alerts.map((alert) => (
             <div
               key={alert.id}
-              className={`p-4 rounded-lg border-l-4 ${getSeverityColor(alert.severity)}`}
+              className={`p-4 rounded-lg border-l-4 ${getSeverityColor(alert.severity, alert.type)}`}
             >
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <div className="flex items-center space-x-2 mb-2">
-                    <span className="text-lg">{getSeverityIcon(alert.severity)}</span>
+                    <span className="text-lg">{getSeverityIcon(alert.severity, alert.type)}</span>
                     <span className="font-semibold text-sm uppercase tracking-wide">
                       {alert.severity} - {alert.type}
                     </span>

@@ -5,6 +5,7 @@ import ShipmentTable from "@/components/ShipmentTable";
 import AlertFeed from "@/components/AlertFeed";
 import SimulateAttackButton from "@/components/SimulateAttackButton";
 import AgentStatusMonitor from "@/components/AgentStatusMonitor";
+import DelayPredictionChart from "@/components/DelayPredictionChart";
 import axios from "axios";
 
 // For demo purposes, using a static user ID
@@ -87,6 +88,25 @@ export default function Dashboard() {
             {/* Alerts - Takes 1/3 of the width on large screens */}
             <div className="lg:col-span-1">
               <AlertFeed refreshTrigger={refreshKey} />
+            </div>
+          </div>
+
+          {/* Predictive Analytics Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <DelayPredictionChart refreshTrigger={refreshKey} />
+            
+            {/* Additional Analytics Placeholder */}
+            <div className="bg-[#201C3D]/85 border-[#3C3470]/50 p-6 rounded-lg">
+              <h3 className="text-lg font-semibold mb-4 text-[#F4F6FF] font-['Rajdhani'] text-glow">
+                Route Performance
+              </h3>
+              <div className="text-center py-8">
+                <div className="text-4xl mb-2">🗺️</div>
+                <p className="text-[#D0D6EB]">Route analytics coming soon</p>
+                <p className="text-sm text-[#D0D6EB] mt-1">
+                  Performance metrics by route and driver
+                </p>
+              </div>
             </div>
           </div>
 
