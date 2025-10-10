@@ -106,7 +106,7 @@ export default function ShipmentTable({ refreshTrigger }: ShipmentTableProps) {
   if (loading) {
     return (
       <div className="card p-6">
-        <h3 className="text-lg font-semibold mb-4 text-[#F4F6FF] font-['Rajdhani'] text-glow">Active Shipments</h3>
+        <h3 className="text-lg font-semibold mb-4 text-gray-900 font-['Rajdhani']">Active Shipments</h3>
         <div className="animate-pulse space-y-4">
           {[...Array(5)].map((_, i) => (
             <div key={i} className="h-12 bg-gray-200 rounded"></div>
@@ -119,70 +119,70 @@ export default function ShipmentTable({ refreshTrigger }: ShipmentTableProps) {
   return (
     <div className="card p-6">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-[#F4F6FF] font-['Rajdhani'] text-glow">Active Shipments</h3>
+        <h3 className="text-lg font-semibold text-gray-900 font-['Rajdhani']">Active Shipments</h3>
         <button
           onClick={fetchShipments}
-          className="px-3 py-1 text-sm bg-gradient-to-r from-[#3B82F6] to-[#06B6D4] text-white rounded shadow-md hover:shadow-blue-500/40 transition-all duration-200 hover:brightness-110"
+          className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-all duration-200"
         >
           Refresh
         </button>
       </div>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-900/20 border border-red-500/30 rounded-md">
-          <p className="text-red-400 text-sm">{error}</p>
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+          <p className="text-red-700 text-sm">{error}</p>
         </div>
       )}
 
       {shipments.length === 0 ? (
-        <div className="text-center py-8 text-[#D0D6EB]">
+        <div className="text-center py-8 text-gray-700">
           No shipments found. Start the simulation to generate data.
         </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-slate-700/50">
+            <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Route ID
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Driver
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Telemetry
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Expected ETA
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Actual ETA
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Delay
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Predicted
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Details
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-slate-800/30 divide-y divide-slate-600">
+            <tbody className="bg-white divide-y divide-gray-200">
               {shipments.map((shipment) => {
                 const delay = calculateDelay(shipment.expectedETA, shipment.actualETA);
                 const lastSeenAgeMin = shipment.lastKnownAt ? Math.round((Date.now() - new Date(shipment.lastKnownAt).getTime()) / 60000) : null;
                 return (
                   <Fragment key={shipment.id}>
-                    <tr key={shipment.id} className="hover:bg-slate-700/30">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[#F4F6FF]">
+                    <tr key={shipment.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {shipment.routeId}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[#F4F6FF]">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
                         {shipment.driverName}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -190,7 +190,7 @@ export default function ShipmentTable({ refreshTrigger }: ShipmentTableProps) {
                           {shipment.routeStatus}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-xs text-[#F4F6FF]">
+                      <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-700">
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-2">
                             <span className={`px-2 py-0.5 rounded-full ${shipment.gpsOnline === false ? 'bg-red-100 text-red-800' : shipment.gpsOnline ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
@@ -200,7 +200,7 @@ export default function ShipmentTable({ refreshTrigger }: ShipmentTableProps) {
                               <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">{shipment.speedKph} kph</span>
                             )}
                           </div>
-                          <div className="text-[11px] text-slate-400">
+                          <div className="text-[11px] text-gray-600">
                             {lastSeenAgeMin !== null ? `Last seen: ${lastSeenAgeMin}m ago` : 'Last seen: —'}
                             {typeof shipment.lastKnownLat === 'number' && typeof shipment.lastKnownLng === 'number' && (
                               <span className="ml-2">({shipment.lastKnownLat.toFixed(3)}, {shipment.lastKnownLng.toFixed(3)})</span>
@@ -208,10 +208,10 @@ export default function ShipmentTable({ refreshTrigger }: ShipmentTableProps) {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[#F4F6FF]">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
                         {formatDateTime(shipment.expectedETA)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[#F4F6FF]">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
                         {shipment.actualETA ? formatDateTime(shipment.actualETA) : "In transit"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -224,7 +224,7 @@ export default function ShipmentTable({ refreshTrigger }: ShipmentTableProps) {
                             {delay > 0 ? `+${delay}m` : `${delay}m`}
                           </span>
                         ) : (
-                          <span className="text-slate-400">-</span>
+                          <span className="text-gray-400">-</span>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -237,37 +237,37 @@ export default function ShipmentTable({ refreshTrigger }: ShipmentTableProps) {
                             {shipment.predictedDelay > 0 ? `+${Math.round(shipment.predictedDelay)}m` : `${Math.round(shipment.predictedDelay)}m`}
                           </span>
                         ) : (
-                          <span className="text-slate-400">-</span>
+                          <span className="text-gray-400">-</span>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <button
                           onClick={() => toggleExpand(shipment.id)}
-                          className="px-2 py-1 text-xs border rounded hover:bg-slate-600 text-[#F4F6FF]"
+                          className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100 text-gray-700"
                         >
                           {expanded[shipment.id] ? 'Hide' : 'Details'}
                         </button>
                       </td>
                     </tr>
                     {expanded[shipment.id] && (
-                      <tr className="bg-slate-700/20">
+                      <tr className="bg-gray-50">
                         <td colSpan={9} className="px-6 py-3">
-                          <div className="text-sm text-[#F4F6FF] grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <div className="text-sm text-gray-800 grid grid-cols-1 md:grid-cols-3 gap-3">
                             <div>
-                              <div className="text-slate-400 text-xs">Route</div>
+                              <div className="text-gray-600 text-xs">Route</div>
                               <div>{shipment.origin || '—'} → {shipment.destination || '—'}</div>
                             </div>
                             <div>
-                              <div className="text-slate-400 text-xs">Last Seen</div>
+                              <div className="text-gray-600 text-xs">Last Seen</div>
                               <div>
                                 {shipment.lastKnownAt ? new Date(shipment.lastKnownAt).toLocaleString() : '—'}
                                 {typeof shipment.lastKnownLat === 'number' && typeof shipment.lastKnownLng === 'number' && (
-                                  <span className="ml-2 text-xs text-slate-400">({shipment.lastKnownLat.toFixed(4)}, {shipment.lastKnownLng.toFixed(4)})</span>
+                                  <span className="ml-2 text-xs text-gray-600">({shipment.lastKnownLat.toFixed(4)}, {shipment.lastKnownLng.toFixed(4)})</span>
                                 )}
                               </div>
                             </div>
                             <div>
-                              <div className="text-slate-400 text-xs">Heading / Speed</div>
+                              <div className="text-gray-600 text-xs">Heading / Speed</div>
                               <div>
                                 {typeof shipment.headingDeg === 'number' ? `${shipment.headingDeg}°` : '—'}
                                 {typeof shipment.speedKph === 'number' ? ` @ ${shipment.speedKph} kph` : ''}
