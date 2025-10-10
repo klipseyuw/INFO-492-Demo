@@ -3,37 +3,72 @@ import prisma from "@/lib/prisma";
 import axios from "axios";
 import { logActivity } from "@/lib/agentActivity";
 
-// Attack simulation scenarios
-const ATTACK_SCENARIOS = [
+// Simulation scenarios - mix of attacks and normal operations
+const SIMULATION_SCENARIOS = [
+  // ATTACK SCENARIOS
   {
     type: "Route Manipulation",
     description: "Suspicious route deviation detected - vehicle diverted 15 miles off planned route",
     delayMinutes: Math.floor(Math.random() * 60) + 30, // 30-90 minutes delay
-    riskFactors: ["GPS spoofing", "unauthorized route change", "potential hijacking"]
+    riskFactors: ["GPS spoofing", "unauthorized route change", "potential hijacking"],
+    isAttack: true
   },
   {
     type: "ETA Manipulation", 
     description: "Delivery time tampering detected - ETA artificially extended",
     delayMinutes: Math.floor(Math.random() * 120) + 60, // 60-180 minutes delay
-    riskFactors: ["time fraud", "driver collusion", "schedule manipulation"]
+    riskFactors: ["time fraud", "driver collusion", "schedule manipulation"],
+    isAttack: true
   },
   {
     type: "Cargo Tampering",
     description: "Unexpected stop detected at unauthorized location for extended period", 
     delayMinutes: Math.floor(Math.random() * 45) + 15, // 15-60 minutes delay
-    riskFactors: ["cargo theft", "unauthorized access", "security breach"]
+    riskFactors: ["cargo theft", "unauthorized access", "security breach"],
+    isAttack: true
   },
   {
     type: "Cyber Attack",
     description: "Anomalous data patterns suggest potential system compromise",
     delayMinutes: Math.floor(Math.random() * 30) + 5, // 5-35 minutes delay
-    riskFactors: ["data injection", "system breach", "malware infection"]
+    riskFactors: ["data injection", "system breach", "malware infection"],
+    isAttack: true
   },
   {
     type: "Driver Impersonation",
     description: "Biometric authentication failure - unauthorized driver detected",
     delayMinutes: Math.floor(Math.random() * 90) + 20, // 20-110 minutes delay
-    riskFactors: ["identity theft", "insider threat", "credential compromise"]
+    riskFactors: ["identity theft", "insider threat", "credential compromise"],
+    isAttack: true
+  },
+  // NORMAL OPERATIONS
+  {
+    type: "Normal Operation",
+    description: "Standard delivery proceeding as planned",
+    delayMinutes: Math.floor(Math.random() * 10) - 5, // -5 to +5 minutes (early to slightly late)
+    riskFactors: [],
+    isAttack: false
+  },
+  {
+    type: "Traffic Delay",
+    description: "Minor delay due to traffic conditions",
+    delayMinutes: Math.floor(Math.random() * 20) + 5, // 5-25 minutes delay
+    riskFactors: ["traffic congestion"],
+    isAttack: false
+  },
+  {
+    type: "Weather Delay",
+    description: "Slight delay due to weather conditions",
+    delayMinutes: Math.floor(Math.random() * 15) + 10, // 10-25 minutes delay
+    riskFactors: ["adverse weather"],
+    isAttack: false
+  },
+  {
+    type: "Fuel Stop",
+    description: "Scheduled fuel stop at authorized location",
+    delayMinutes: Math.floor(Math.random() * 15) + 5, // 5-20 minutes delay
+    riskFactors: ["scheduled maintenance"],
+    isAttack: false
   }
 ];
 
@@ -61,8 +96,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Generate random attack scenario
-    const scenario = ATTACK_SCENARIOS[Math.floor(Math.random() * ATTACK_SCENARIOS.length)];
+    // Generate random scenario (attack or normal operation)
+    const scenario = SIMULATION_SCENARIOS[Math.floor(Math.random() * SIMULATION_SCENARIOS.length)];
     const routeId = `R-ATK-${Date.now()}`;
     const driverName = `Driver ${Math.floor(Math.random() * 100) + 1}`;
     
@@ -88,14 +123,28 @@ export async function POST(req: Request) {
     let speedKph: number | null = Math.max(0, Math.round(80 + (Math.random() - 0.5) * 40));
     let headingDeg: number | null = Math.floor(Math.random() * 360);
 
-    if (scenario.type === 'Cyber Attack') {
-      gpsOnline = false;
-      lastKnownAt = new Date(baseTime.getTime() - 40 * 60 * 1000);
-      speedKph = 0;
-    } else if (scenario.type === 'Cargo Tampering') {
-      speedKph = 0;
-      lastKnownAt = new Date(baseTime.getTime() - 45 * 60 * 1000);
+    // Adjust telemetry based on scenario type
+    if (scenario.isAttack) {
+      if (scenario.type === 'Cyber Attack') {
+        gpsOnline = false;
+        lastKnownAt = new Date(baseTime.getTime() - 40 * 60 * 1000);
+        speedKph = 0;
+      } else if (scenario.type === 'Cargo Tampering') {
+        speedKph = 0;
+        lastKnownAt = new Date(baseTime.getTime() - 45 * 60 * 1000);
+        gpsOnline = true;
+      }
+    } else {
+      // Normal operations - make everything look normal
       gpsOnline = true;
+      lastKnownAt = new Date(baseTime.getTime() - Math.floor(Math.random() * 5 + 2) * 60 * 1000); // 2-7 minutes ago
+      speedKph = Math.round(60 + Math.random() * 30); // 60-90 kph normal highway speed
+      
+      // For fuel stops, show stopped but recent GPS
+      if (scenario.type === 'Fuel Stop') {
+        speedKph = 0;
+        lastKnownAt = new Date(baseTime.getTime() - 5 * 60 * 1000); // 5 minutes ago
+      }
     }
 
     // Create the shipment with attack scenario - this is just suspicious data, no alert yet
@@ -122,11 +171,13 @@ export async function POST(req: Request) {
     // Activity log for creation
     logActivity({
       userId,
-      type: 'suspicious_shipment_created',
+      type: scenario.isAttack ? 'suspicious_shipment_created' : 'normal_shipment_created',
       status: 'completed',
       shipmentId: routeId,
-      description: `Suspicious shipment created (${scenario.type})`,
-      metadata: { delayMinutes: scenario.delayMinutes }
+      description: scenario.isAttack 
+        ? `Suspicious shipment created (${scenario.type})`
+        : `Normal shipment created (${scenario.type})`,
+      metadata: { delayMinutes: scenario.delayMinutes, isAttack: scenario.isAttack }
     });
 
     // Now trigger the defense agent to analyze this shipment

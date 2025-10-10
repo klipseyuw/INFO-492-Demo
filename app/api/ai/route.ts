@@ -100,14 +100,24 @@ CRITICAL RISK (71-100):
 - Driver communication lost
 - Heading toward unauthorized areas
 
+ATTACK TYPE DETECTION:
+Identify the most likely threat based on patterns:
+- ROUTE_MANIPULATION: Unexpected deviations, wrong locations
+- GPS_SPOOFING: Offline GPS, contradictory location data  
+- CARGO_TAMPERING: Extended unauthorized stops, 0 speed + delays
+- ETA_FRAUD: Artificial delays, schedule manipulation
+- DRIVER_IMPERSONATION: Communication loss, unusual patterns
+- CYBER_ATTACK: System anomalies, data inconsistencies
+- NORMAL_OPERATION: No threats detected
+
 Return JSON only:
 {
   "riskScore": <number 0-100>,
-  "alertType": "<string>",
-  "description": "<brief explanation>",
-  "operatorSummary": "<action needed>",
-  "recommendedActions": ["<action1>", "<action2>"],
-  "evidence": ["<evidence1>", "<evidence2>"]
+  "alertType": "<one of the attack types above or descriptive threat name>",
+  "description": "<brief explanation of threat indicators>",
+  "operatorSummary": "<immediate action needed>", 
+  "recommendedActions": ["<specific action 1>", "<specific action 2>", "<specific action 3>"],
+  "evidence": ["<supporting evidence 1>", "<supporting evidence 2>"]
 }`;
 
   interface AIResult { riskScore: number; alertType: string; description: string; operatorSummary?: string; recommendedActions?: string[]; evidence?: string[]; source?: string; usingFallback?: boolean; fallbackReason?: string; [k: string]: unknown }
