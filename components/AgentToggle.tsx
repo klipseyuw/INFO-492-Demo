@@ -57,10 +57,10 @@ export default function AgentToggle({ userId, onToggle }: AgentToggleProps) {
     <div className="card p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-[#F4F6FF] font-['Rajdhani'] text-glow">
+          <h3 className="text-lg font-semibold text-gray-900 font-['Rajdhani']">
             AI Defense Agent
           </h3>
-          <p className="text-sm text-[#D0D6EB] mt-1">
+          <p className="text-sm text-gray-700 mt-1">
             {isActive 
               ? "Agent is actively monitoring logistics data for anomalies"
               : "Agent is disabled - no AI monitoring active"
@@ -83,10 +83,10 @@ export default function AgentToggle({ userId, onToggle }: AgentToggleProps) {
           <button
             onClick={toggleAgent}
             disabled={loading}
-            className={`px-6 py-2 rounded-lg font-medium transition-all duration-200 hover:brightness-110 ${
+            className={`px-6 py-2 rounded-lg font-medium transition-all duration-200 ${
               isActive
-                ? "bg-gradient-to-r from-[#EC4899] to-[#F43F5E] text-white shadow-md hover:shadow-red-500/40"
-                : "bg-gradient-to-r from-[#3B82F6] to-[#06B6D4] text-white shadow-md hover:shadow-blue-500/40"
+                ? "bg-red-600 text-white hover:bg-red-700"
+                : "bg-blue-600 text-white hover:bg-blue-700"
             } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
           >
             {loading ? "..." : isActive ? "Disable" : "Enable"}
@@ -95,8 +95,8 @@ export default function AgentToggle({ userId, onToggle }: AgentToggleProps) {
       </div>
       
       {error && (
-        <div className="mt-4 p-3 bg-red-900/20 border border-red-500/30 rounded-md">
-          <p className="text-red-400 text-sm">{error}</p>
+        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+          <p className="text-red-700 text-sm">{error}</p>
         </div>
       )}
     </div>

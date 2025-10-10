@@ -107,20 +107,20 @@ export default function DelayPredictionChart({
   const getConfidenceColor = (confidence: string) => {
     switch (confidence.toLowerCase()) {
       case "high":
-        return "text-green-400";
+        return "text-green-700";
       case "medium":
-        return "text-yellow-400";
+        return "text-amber-700";
       case "low":
-        return "text-red-400";
+        return "text-red-700";
       default:
-        return "text-gray-400";
+        return "text-gray-700";
     }
   };
 
   const getDeviationColor = (deviation: number, threshold: number) => {
-    if (deviation > threshold) return "text-red-400";
-    if (deviation > threshold * 0.7) return "text-yellow-400";
-    return "text-green-400";
+    if (deviation > threshold) return "text-red-700";
+    if (deviation > threshold * 0.7) return "text-amber-700";
+    return "text-green-700";
   };
 
   const formatDelay = (minutes: number) => {
@@ -134,8 +134,8 @@ export default function DelayPredictionChart({
 
   if (loading) {
     return (
-      <div className="bg-[#201C3D]/85 border-[#3C3470]/50 p-6 rounded-lg">
-        <h3 className="text-lg font-semibold mb-4 text-[#F4F6FF] font-['Rajdhani'] text-glow">
+      <div className="card p-6">
+        <h3 className="text-lg font-semibold mb-4 text-gray-900 font-['Rajdhani']">
           Delay Prediction Analysis
         </h3>
         <div className="animate-pulse space-y-4">
@@ -147,9 +147,9 @@ export default function DelayPredictionChart({
   }
 
   return (
-    <div className="bg-[#201C3D]/85 border-[#3C3470]/50 p-6 rounded-lg">
+    <div className="card p-6">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-[#F4F6FF] font-['Rajdhani'] text-glow">
+        <h3 className="text-lg font-semibold text-gray-900 font-['Rajdhani']">
           Delay Prediction Analysis
         </h3>
         <button
@@ -157,15 +157,15 @@ export default function DelayPredictionChart({
             fetchPredictionData();
             fetchHistoricalData();
           }}
-          className="px-3 py-1 text-sm bg-gradient-to-r from-[#3B82F6] to-[#06B6D4] text-white rounded shadow-md hover:shadow-blue-500/40 transition-all duration-200 hover:brightness-110"
+          className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-all duration-200"
         >
           Refresh
         </button>
       </div>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-900/20 border border-red-500/30 rounded-md">
-          <p className="text-red-400 text-sm">{error}</p>
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+          <p className="text-red-700 text-sm">{error}</p>
         </div>
       )}
 
@@ -175,36 +175,38 @@ export default function DelayPredictionChart({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className={`p-4 rounded-lg border-l-4 ${
               predictionData.alert 
-                ? 'bg-red-900/20 border-red-500/30' 
-                : 'bg-green-900/20 border-green-500/30'
+                ? 'bg-red-50 border-red-400' 
+                : 'bg-green-50 border-green-400'
             }`}>
               <div className="flex items-center space-x-2 mb-2">
                 <span className="text-lg">{predictionData.alert ? '🚨' : '✅'}</span>
-                <span className="font-semibold text-sm uppercase tracking-wide">
+                <span className={`font-semibold text-sm uppercase tracking-wide ${
+                  predictionData.alert ? 'text-red-900' : 'text-green-900'
+                }`}>
                   {predictionData.alert ? 'ALERT' : 'NORMAL'}
                 </span>
               </div>
-              <p className="text-[#F4F6FF] mb-1">
+              <p className="text-gray-900 mb-1">
                 Predicted Delay: <span className="font-semibold">{formatDelay(predictionData.predictedDelay)}</span>
               </p>
-              <p className="text-[#D0D6EB] text-sm">
+              <p className="text-gray-800 text-sm">
                 Current Deviation: <span className={getDeviationColor(predictionData.deviation, predictionData.threshold)}>
                   {formatDelay(predictionData.deviation)}
                 </span>
               </p>
             </div>
 
-            <div className="p-4 rounded-lg border-l-4 bg-blue-900/20 border-blue-500/30">
+            <div className="p-4 rounded-lg border-l-4 bg-blue-50 border-blue-400">
               <div className="flex items-center space-x-2 mb-2">
                 <span className="text-lg">📊</span>
-                <span className="font-semibold text-sm uppercase tracking-wide">CONFIDENCE</span>
+                <span className="font-semibold text-sm uppercase tracking-wide text-blue-900">CONFIDENCE</span>
               </div>
-              <p className="text-[#F4F6FF] mb-1">
+              <p className="text-gray-900 mb-1">
                 Level: <span className={`font-semibold ${getConfidenceColor(predictionData.confidence)}`}>
                   {predictionData.confidence.toUpperCase()}
                 </span>
               </p>
-              <p className="text-[#D0D6EB] text-sm">
+              <p className="text-gray-800 text-sm">
                 Data Points: {predictionData.dataPoints}
               </p>
             </div>
@@ -212,23 +214,23 @@ export default function DelayPredictionChart({
 
           {/* Prediction Methods Breakdown */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 rounded-lg bg-gray-900/20 border border-gray-500/30">
-              <h4 className="text-sm font-semibold text-[#F4F6FF] mb-2">Moving Average</h4>
-              <p className="text-[#D0D6EB] text-lg font-semibold">
+            <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
+              <h4 className="text-sm font-semibold text-gray-900 mb-2">Moving Average</h4>
+              <p className="text-gray-800 text-lg font-semibold">
                 {formatDelay(predictionData.movingAverage)}
               </p>
             </div>
             
-            <div className="p-4 rounded-lg bg-gray-900/20 border border-gray-500/30">
-              <h4 className="text-sm font-semibold text-[#F4F6FF] mb-2">Linear Regression</h4>
-              <p className="text-[#D0D6EB] text-lg font-semibold">
+            <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
+              <h4 className="text-sm font-semibold text-gray-900 mb-2">Linear Regression</h4>
+              <p className="text-gray-800 text-lg font-semibold">
                 {formatDelay(predictionData.linearRegression)}
               </p>
             </div>
             
-            <div className="p-4 rounded-lg bg-gray-900/20 border border-gray-500/30">
-              <h4 className="text-sm font-semibold text-[#F4F6FF] mb-2">R² Score</h4>
-              <p className="text-[#D0D6EB] text-lg font-semibold">
+            <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
+              <h4 className="text-sm font-semibold text-gray-900 mb-2">R² Score</h4>
+              <p className="text-gray-800 text-lg font-semibold">
                 {(predictionData.rSquared * 100).toFixed(1)}%
               </p>
             </div>
@@ -237,25 +239,25 @@ export default function DelayPredictionChart({
           {/* Recent Delay History */}
           {historicalData.length > 0 && (
             <div>
-              <h4 className="text-md font-semibold text-[#F4F6FF] mb-3">Recent Delay History</h4>
+              <h4 className="text-md font-semibold text-gray-900 mb-3">Recent Delay History</h4>
               <div className="max-h-48 overflow-y-auto">
                 <div className="space-y-2">
                   {historicalData.map((item, index) => (
-                    <div key={index} className="flex justify-between items-center p-2 bg-gray-900/20 rounded">
+                    <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded border border-gray-200">
                       <div className="flex items-center space-x-3">
-                        <span className="text-xs text-[#D0D6EB]">
+                        <span className="text-xs text-gray-700">
                           {new Date(item.date).toLocaleDateString()}
                         </span>
-                        <span className="text-sm text-[#D0D6EB]">Route {item.routeId}</span>
+                        <span className="text-sm text-gray-800">Route {item.routeId}</span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <span className={`text-sm font-semibold ${
-                          item.delay > 0 ? 'text-red-400' : 'text-green-400'
+                          item.delay > 0 ? 'text-red-600' : 'text-green-600'
                         }`}>
                           {item.delay > 0 ? '+' : ''}{formatDelay(item.delay)}
                         </span>
                         {item.predictedDelay && (
-                          <span className="text-xs text-[#D0D6EB]">
+                          <span className="text-xs text-gray-700">
                             (pred: {formatDelay(item.predictedDelay)})
                           </span>
                         )}
@@ -269,12 +271,12 @@ export default function DelayPredictionChart({
 
           {/* Latest Shipment Info */}
           {predictionData.latestShipment && (
-            <div className="p-4 rounded-lg bg-purple-900/20 border border-purple-500/30">
-              <h4 className="text-sm font-semibold text-[#F4F6FF] mb-2">Active Shipment</h4>
-              <div className="text-[#D0D6EB] text-sm space-y-1">
+            <div className="p-4 rounded-lg bg-purple-50 border border-purple-200">
+              <h4 className="text-sm font-semibold text-purple-900 mb-2">Active Shipment</h4>
+              <div className="text-gray-800 text-sm space-y-1">
                 <p>Route: {predictionData.latestShipment.routeId}</p>
                 <p>Expected ETA: {new Date(predictionData.latestShipment.expectedETA).toLocaleString()}</p>
-                <p>Predicted Delay: <span className="text-purple-400 font-semibold">
+                <p>Predicted Delay: <span className="text-purple-700 font-semibold">
                   {formatDelay(predictionData.latestShipment.predictedDelay)}
                 </span></p>
               </div>
@@ -284,8 +286,8 @@ export default function DelayPredictionChart({
       ) : (
         <div className="text-center py-8">
           <div className="text-4xl mb-2">📈</div>
-          <p className="text-[#D0D6EB]">No prediction data available</p>
-          <p className="text-sm text-[#D0D6EB] mt-1">
+          <p className="text-gray-700">No prediction data available</p>
+          <p className="text-sm text-gray-600 mt-1">
             Complete more shipments to enable predictions
           </p>
         </div>

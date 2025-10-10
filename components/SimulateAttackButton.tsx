@@ -53,10 +53,10 @@ export default function SimulateAttackButton({ userId, agentActive = false, onAt
     <div className="card p-6 border-l-4 border-red-500">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-lg font-semibold text-[#F4F6FF] mb-1 font-['Rajdhani'] text-glow">
+          <h3 className="text-lg font-semibold text-gray-900 mb-1 font-['Rajdhani']">
             Attack Simulation
           </h3>
-          <p className="text-sm text-[#D0D6EB]">
+          <p className="text-sm text-gray-700">
             Generate a realistic cyber-physical attack scenario for testing
           </p>
           <div className={`mt-2 inline-flex items-center px-2 py-1 rounded text-xs ${
@@ -78,8 +78,8 @@ export default function SimulateAttackButton({ userId, agentActive = false, onAt
       </div>
 
       {lastAttack && (
-        <div className="mb-4 p-3 bg-red-900/20 border border-red-500/30 rounded-md">
-          <p className="text-sm text-red-400">
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+          <p className="text-sm text-red-700">
             <strong>Last Simulation:</strong> {lastAttack}
           </p>
         </div>
@@ -89,10 +89,10 @@ export default function SimulateAttackButton({ userId, agentActive = false, onAt
         <button
           onClick={simulateAttack}
           disabled={isSimulating}
-          className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:brightness-110 ${
+          className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
             isSimulating
-              ? "bg-gray-600 text-gray-400 cursor-not-allowed"
-              : "bg-gradient-to-r from-[#EC4899] to-[#F43F5E] text-white shadow-md hover:shadow-red-500/40"
+              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+              : "bg-red-600 text-white hover:bg-red-700"
           }`}
         >
           {isSimulating ? (
@@ -113,7 +113,7 @@ export default function SimulateAttackButton({ userId, agentActive = false, onAt
           )}
         </button>
         
-        <div className="flex items-center text-xs text-[#D0D6EB] px-2">
+        <div className="flex items-center text-xs text-gray-600 px-2">
           <svg className="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
@@ -121,30 +121,30 @@ export default function SimulateAttackButton({ userId, agentActive = false, onAt
         </div>
       </div>
 
-      <div className="space-y-3 mt-4 text-sm leading-relaxed text-[#C7D2FE]">
+      <div className="space-y-3 mt-4 text-sm leading-relaxed">
         <div>
-          <p className="font-semibold text-[#A5B4FC] flex items-center gap-1">
+          <p className="font-semibold text-blue-700 flex items-center gap-1">
             🧠 Scenarios include:
           </p>
-          <p className="pl-6 text-[#E0E7FF]">
+          <p className="pl-6 text-gray-700">
             Route manipulation, ETA tampering, cargo theft, cyber attacks, driver impersonation
           </p>
         </div>
 
         <div>
-          <p className="font-semibold text-[#6EE7B7] flex items-center gap-1">
+          <p className="font-semibold text-green-700 flex items-center gap-1">
             🟢 With Agent Active:
           </p>
-          <p className="pl-6 text-[#E0E7FF]">
+          <p className="pl-6 text-gray-700">
             Creates suspicious shipment → Defense agent detects threat → Alert generated with recommendations
           </p>
         </div>
 
         <div>
-          <p className="font-semibold text-[#FCA5A5] flex items-center gap-1">
+          <p className="font-semibold text-red-700 flex items-center gap-1">
             🔴 With Agent Inactive:
           </p>
-          <p className="pl-6 text-[#E0E7FF]">
+          <p className="pl-6 text-gray-700">
             Creates suspicious shipment → No detection → Threat goes unnoticed
           </p>
         </div>
