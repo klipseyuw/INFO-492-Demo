@@ -135,19 +135,19 @@ Return JSON only:
     const activityStart = Date.now();
     
   try {
-      // Pre-flight: ensure API key exists
-      if (!process.env.OPENROUTER_API_KEY) {
-        console.warn("[AI] Missing OPENROUTER_API_KEY; analysis cannot proceed.");
+      // Pre-flight: ensure API key exists (temporarily disabled for fallback testing)
+      const TEST_FALLBACK = false; // Set to true to test fallback
+      if (!process.env.OPENROUTER_API_KEY || TEST_FALLBACK) {
+        console.warn("[AI] Missing OPENROUTER_API_KEY or fallback testing enabled; using fallback analysis.");
         const duration = Date.now() - activityStart;
-        updateActivity(started.id, { status: 'failed', duration, metadata: { ...(started.metadata||{}), error: 'ai_unavailable', reason: 'missing_api_key' } });
-        return NextResponse.json(
-          { error: "AI analysis unavailable", message: "Missing OPENROUTER_API_KEY", aiUnavailable: true, reason: 'missing_api_key' },
-          { status: 503 }
-        );
+        updateActivity(started.id, { status: 'failed', duration, metadata: { ...(started.metadata||{}), error: 'ai_unavailable', reason: TEST_FALLBACK ? 'fallback_test' : 'missing_api_key' } });
+        
+        // Jump to fallback logic instead of returning error
+        throw new Error(TEST_FALLBACK ? 'Fallback test mode' : 'Missing API key');
       }
       // Try OpenRouter API with improved JSON parsing
   console.log("[AI] Attempting OpenRouter API call...");
-  const modelName = "deepseek/deepseek-chat-v3.1:free"; // Alternate model: z-ai/glm-4.5-air:free
+  const modelName = "z-ai/glm-4.5-air:free"; // Alternate model: deepseek/deepseek-chat-v3.1:free
   console.log("[AI] Model:", modelName);
       
       const baseHeaders = {
@@ -161,6 +161,15 @@ Return JSON only:
 
       // First attempt: with response_format json_object
       let aiRes;
+      console.log("[AI] Making API call to:", "https://openrouter.ai/api/v1/chat/completions");
+      console.log("[AI] Request payload:", JSON.stringify({
+        model: modelName,
+        messages: [{ role: "user", content: prompt.substring(0, 200) + "..." }],
+        max_tokens: 200,
+        temperature: 0.4,
+        response_format: { type: "json_object" }
+      }, null, 2));
+      
       try {
         aiRes = await axios.post(
           "https://openrouter.ai/api/v1/chat/completions",
@@ -204,21 +213,126 @@ Return JSON only:
         );
       }
 
-      const analysis = aiRes.data.choices?.[0]?.message?.content || '{"riskScore": 0, "alertType": "analysis_failed", "description": "AI analysis failed"}';
-
-      // Advanced JSON extraction - handle multiple formats
-      let jsonString = analysis;
-      
-      // Remove markdown code blocks
-      jsonString = jsonString.replace(/```json\s*/g, '').replace(/```\s*/g, '');
-      
-      // Extract JSON object (more permissive)
-      const jsonMatch = jsonString.match(/\{[\s\S]*?\}/);
-      if (jsonMatch) {
-        jsonString = jsonMatch[0];
+      // DEBUG: Log the complete API response for troubleshooting
+      console.log("[AI] Full OpenRouter response data:", JSON.stringify(aiRes.data, null, 2));
+      console.log("[AI] Response status:", aiRes.status);
+      if (aiRes?.data?.error) {
+        // OpenRouter sometimes wraps upstream provider errors in 200s
+        const msg = aiRes.data.error?.message || "Unknown provider error";
+        const code = aiRes.data.error?.code;
+        console.warn("[AI] Provider returned error payload despite 200:", { code, msg });
+        throw new Error(`Provider error ${code || ''}: ${msg}`.trim());
       }
       
-      result = JSON.parse(jsonString);
+      // Check if response has expected structure
+      if (!aiRes.data || !aiRes.data.choices || !Array.isArray(aiRes.data.choices) || aiRes.data.choices.length === 0) {
+        console.warn("[AI] Malformed OpenRouter response - no choices array. Triggering fallback.");
+        throw new Error(`Malformed API response: ${JSON.stringify(aiRes.data)}`);
+      }
+      
+      // Extract content from either content, reasoning, or reasoning_details
+      const message = aiRes.data.choices[0]?.message;
+      const finishReason = aiRes.data.choices[0]?.finish_reason || aiRes.data.choices[0]?.native_finish_reason;
+      if (finishReason === 'length') {
+        console.warn("[AI] Model output truncated (finish_reason=length). Attempting JSON salvage.");
+      }
+      let analysis = message?.content;
+      
+      // Some models may use reasoning field for structured responses
+      if (!analysis || analysis.trim() === "") {
+        analysis = message?.reasoning || 
+                  message?.reasoning_details?.[0]?.text ||
+                  null;
+      }
+      
+      if (!analysis) {
+        console.warn("[AI] No content in OpenRouter response (checked content, reasoning, and reasoning_details). Triggering fallback.");
+        throw new Error("No content in API response");
+      }
+      
+      console.log("[AI] Extracted analysis content:", analysis);
+
+      // Advanced JSON extraction - handle multiple formats and truncated output
+      let jsonString = analysis;
+
+      // Remove markdown code blocks
+      jsonString = jsonString.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+
+      // Remove provider/model-specific tokens and extra content
+      jsonString = jsonString.replace(/<｜begin▁of▁sentence｜>/g, '');
+      jsonString = jsonString.replace(/<\|.*?\|>/g, '');
+
+      // Helper: try best-effort parse with progressive salvage
+      const tryParseJson = (s: string): any => {
+        return JSON.parse(s);
+      };
+
+      // Helper: find a balanced JSON object substring using brace counting (ignores braces inside strings)
+      const findBalancedJson = (s: string): string | null => {
+        const start = s.indexOf('{');
+        if (start < 0) return null;
+        let inStr = false;
+        let escaped = false;
+        let depth = 0;
+        let lastComplete = -1;
+        for (let i = start; i < s.length; i++) {
+          const ch = s[i];
+          if (inStr) {
+            if (escaped) {
+              escaped = false;
+            } else if (ch === '\\') {
+              escaped = true;
+            } else if (ch === '"') {
+              inStr = false;
+            }
+          } else {
+            if (ch === '"') inStr = true;
+            else if (ch === '{') depth++;
+            else if (ch === '}') {
+              depth--;
+              if (depth === 0) lastComplete = i;
+            }
+          }
+        }
+        if (lastComplete > start) return s.slice(start, lastComplete + 1);
+        return null;
+      };
+
+      // First try: longest balanced object
+      let candidate = findBalancedJson(jsonString) ?? jsonString;
+      let parsed: any | undefined;
+      try {
+        parsed = tryParseJson(candidate);
+      } catch (e1) {
+        // Second try: trim to last closing brace if present
+        const lastBrace = candidate.lastIndexOf('}');
+        if (lastBrace > 0) {
+          const trimmed = candidate.slice(0, lastBrace + 1);
+          try {
+            parsed = tryParseJson(trimmed);
+          } catch (e2) {
+            // Third try: regex-extract minimal fields from raw text
+            const text = jsonString;
+            const riskMatch = text.match(/"riskScore"\s*:\s*(\d{1,3})/);
+            const typeMatch = text.match(/"alertType"\s*:\s*"([^"]{1,120})"/);
+            const descMatch = text.match(/"description"\s*:\s*"([^\n\r"]{0,500})/); // tolerate unterminated
+            if (riskMatch || typeMatch || descMatch) {
+              parsed = {
+                riskScore: riskMatch ? Number(riskMatch[1]) : 0,
+                alertType: typeMatch ? typeMatch[1] : 'unknown',
+                description: descMatch ? descMatch[1] + (finishReason === 'length' ? '…' : '') : ''
+              };
+              console.warn("[AI] Parsed partial fields from truncated JSON.");
+            }
+          }
+        }
+      }
+
+      if (!parsed) {
+        throw new Error('Unable to parse AI JSON response');
+      }
+
+      result = parsed;
       result.source = 'openrouter';
       // Normalize AI output without altering intent
       const n = Number((result as any).riskScore);
@@ -241,7 +355,7 @@ Return JSON only:
     } catch (apiError: any) {
       const isAxios = !!apiError?.isAxiosError;
       const status = isAxios ? apiError?.response?.status : undefined;
-      const body = isAxios ? apiError?.response?.data : undefined;
+      const body = isAxios ? apiError?.response?.data : (typeof apiError?.message === 'string' && apiError.message.startsWith('Provider error')) ? apiError.message : undefined;
       const reason = !process.env.OPENROUTER_API_KEY ? 'missing_api_key' : (status ? `http_${status}` : 'network_error');
       console.warn("[AI] OpenRouter API failed, using fallback analysis:", apiError instanceof Error ? apiError.message : apiError, { status, body });
       

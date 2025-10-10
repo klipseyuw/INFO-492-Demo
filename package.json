@@ -14,17 +14,18 @@
     "db:studio": "npx prisma studio",
     "db:generate": "npx prisma generate",
     "postinstall": "prisma generate",
-  "test:normal": "node tests/test-normal.js",
-  "test:ai": "node tests/test-ai.js",
-  "test:attack": "node tests/test-attack-sim.js",
-  "test:final": "node tests/final-test.js",
-  "test": "npm run test:normal && npm run test:ai && npm run test:attack"
+    "test:normal": "node tests/test-normal.js",
+    "test:ai": "node tests/test-ai.js",
+    "test:attack": "node tests/test-attack-sim.js",
+    "test:final": "node tests/final-test.js",
+    "test": "npm run test:normal && npm run test:ai && npm run test:attack"
   },
   "dependencies": {
     "@prisma/client": "^6.17.0",
     "axios": "^1.12.2",
     "dotenv": "^17.2.3",
     "next": "15.5.4",
+    "node-fetch": "^3.3.2",
     "openai": "^6.2.0",
     "prisma": "^6.17.0",
     "react": "19.1.0",

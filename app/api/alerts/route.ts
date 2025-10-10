@@ -34,9 +34,16 @@ export async function DELETE(req: Request) {
       );
     }
 
-    await prisma.alert.delete({
+    const del = await prisma.alert.deleteMany({
       where: { id: alertId },
     });
+
+    if (del.count === 0) {
+      return NextResponse.json(
+        { error: "Alert not found", message: `No alert with id '${alertId}'` },
+        { status: 404 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
