@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import axios from "axios";
 
 export default function Navigation() {
   const router = useRouter();
@@ -15,11 +14,25 @@ export default function Navigation() {
 
   const handleLogout = async () => {
     try {
-      await axios.post("/api/auth/logout");
-      router.push("/login");
-      router.refresh();
+      // Send logout request to clear server-side session cookie
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include", // Ensure cookies are sent and cleared
+      });
+
+      // Wait for successful response
+      if (response.ok) {
+        // Redirect to login page after successful logout
+        router.push("/login");
+        router.refresh(); // Refresh to clear any cached data
+      } else {
+        throw new Error(`Logout failed with status: ${response.status}`);
+      }
     } catch (error) {
       console.error("Logout failed:", error);
+      // Still redirect to login even on error to clear client state
+      router.push("/login");
+      router.refresh();
     }
   };
 
