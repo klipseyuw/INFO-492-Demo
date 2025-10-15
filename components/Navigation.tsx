@@ -1,10 +1,25 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import axios from "axios";
+
 export default function Navigation() {
+  const router = useRouter();
+
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await axios.post("/api/auth/logout");
+      router.push("/login");
+      router.refresh();
+    } catch (error) {
+      console.error("Logout failed:", error);
     }
   };
 
@@ -46,14 +61,24 @@ export default function Navigation() {
             </button>
           </div>
 
-          {/* System Status */}
-          <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-sm font-medium text-gray-700">System Online</span>
+          {/* System Status & Logout */}
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-sm font-medium text-gray-700">System Online</span>
+            </div>
+            
+            <button
+              onClick={handleLogout}
+              className="text-sm font-medium text-gray-600 hover:text-red-600 transition-all duration-200"
+            >
+              Logout
+            </button>
           </div>
         </div>
       </div>
     </nav>
   );
 }
+
 
