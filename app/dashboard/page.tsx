@@ -4,6 +4,7 @@ import Navigation from "@/components/Navigation";
 import AgentToggle from "@/components/AgentToggle";
 import ShipmentTable from "@/components/ShipmentTable";
 import AlertFeed from "@/components/AlertFeed";
+import RecentAnalyses from "@/components/RecentAnalyses";
 import SimulateAttackButton from "@/components/SimulateAttackButton";
 import AgentStatusMonitor from "@/components/AgentStatusMonitor";
 import DelayPredictionChart from "@/components/DelayPredictionChart";
@@ -84,9 +85,17 @@ export default function Dashboard() {
               <ShipmentTable refreshTrigger={refreshKey} />
             </div>
 
-            {/* Alerts - Takes 1/3 of the width on large screens */}
-            <div id="alerts" className="lg:col-span-1 scroll-mt-20">
-              <AlertFeed refreshTrigger={refreshKey} />
+            {/* Right Sidebar - Alerts and Analyses */}
+            <div className="lg:col-span-1 space-y-6">
+              {/* Alerts */}
+              <div id="alerts" className="scroll-mt-20">
+                <AlertFeed refreshTrigger={refreshKey} />
+              </div>
+
+              {/* Recent Analyses - Shows ALL predictions including safe ones */}
+              <div id="analyses" className="scroll-mt-20">
+                <RecentAnalyses refreshTrigger={refreshKey} />
+              </div>
             </div>
           </div>
 

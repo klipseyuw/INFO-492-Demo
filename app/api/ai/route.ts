@@ -57,6 +57,24 @@ export async function POST(req: Request) {
   if (typeof headingDeg === 'number') telemetryLines.push(`- Heading: ${headingDeg}°`);
   if (routeStatus) telemetryLines.push(`- Route Status: ${routeStatus}`);
 
+  // Fetch recent feedback for few-shot learning
+  let learningContext = '';
+  try {
+    const feedbackRes = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/alerts/feedback?limit=5&accurate=true`);
+    const feedbackData = await feedbackRes.json();
+    if (feedbackData.success && feedbackData.examples && feedbackData.examples.length > 0) {
+      learningContext = '\n\nLEARNING FROM PAST ACCURATE PREDICTIONS:\n';
+      feedbackData.examples.forEach((ex: any, i: number) => {
+        learningContext += `\nExample ${i + 1}:\n`;
+        learningContext += `Scenario: Delay=${Math.round(ex.scenario.delayMinutes || 0)}min, GPS=${ex.scenario.gpsOnline}, Speed=${ex.scenario.speedKph}kph\n`;
+        learningContext += `Correct Assessment: Risk=${ex.actualResult.riskScore}, Type=${ex.actualResult.attackType}\n`;
+      });
+      console.log(`[AI] Enriching prompt with ${feedbackData.examples.length} learning examples`);
+    }
+  } catch (err) {
+    console.warn('[AI] Could not fetch feedback for learning:', err instanceof Error ? err.message : err);
+  }
+
   const prompt = `LOGISTICS SECURITY THREAT ANALYSIS
 
 Analyze this shipment and assign a risk score (0-100) based on threat indicators:
@@ -109,6 +127,7 @@ Identify the most likely threat based on patterns:
 - DRIVER_IMPERSONATION: Communication loss, unusual patterns
 - CYBER_ATTACK: System anomalies, data inconsistencies
 - NORMAL_OPERATION: No threats detected
+${learningContext}
 
 Return JSON only:
 {
@@ -442,6 +461,46 @@ Return JSON only:
       metadata: { riskScore: result.riskScore, alertType: result.alertType }
     });
 
+    // ALSO persist to database for /api/analyses endpoint
+    await prisma.agentActivity.create({
+      data: {
+        userId,
+        activityType: attackScenario ? 'threat_analysis' : 'routine_analysis',
+        status: 'completed',
+        targetShipment: routeId,
+        description: result.description || (attackScenario ? 'Threat analysis completed' : 'Routine analysis completed'),
+        metadata: JSON.stringify({ riskScore: result.riskScore, alertType: result.alertType }),
+      }
+    });
+
+    // Persist structured analysis to Analysis table for feedback on safe predictions
+    try {
+      const shipmentContext = {
+        delayMinutes,
+        gpsOnline,
+        speedKph,
+        origin,
+        destination,
+        attackScenario: attackScenario?.type
+      };
+      await prisma.analysis.create({
+        data: {
+          shipmentId: routeId,
+          routeId,
+          driverName: driverName || 'Unknown',
+          riskScore: Number(result.riskScore) || 0,
+          alertType: String(result.alertType || 'unknown'),
+          severity: (Number(result.riskScore) || 0) > 70 ? 'high' : (Number(result.riskScore) || 0) > 40 ? 'medium' : 'low',
+          description: result.description || '',
+          shipmentContext: JSON.stringify(shipmentContext),
+          analyzed: true,
+          source: typeof result.source === 'string' ? result.source : undefined
+        }
+      });
+    } catch (err) {
+      console.warn('[AI] Failed to persist Analysis record:', err instanceof Error ? err.message : err);
+    }
+
     // Save alert if risk score is significant
     if (typeof result.riskScore === 'number' && result.riskScore > 20) {
       await prisma.alert.create({
@@ -468,11 +527,22 @@ Return JSON only:
     const duration = Date.now() - activityStart;
     updateActivity(started.id, { status: 'completed', duration, metadata: { ...(started.metadata||{}), riskScore: result.riskScore } });
 
+    // Include shipment context for feedback
+    const shipmentContext = {
+      delayMinutes,
+      gpsOnline,
+      speedKph,
+      origin,
+      destination,
+      attackScenario: attackScenario?.type
+    };
+
     return NextResponse.json({
       success: true,
       ...result,
       analyzed: true,
-      attackScenario: attackScenario ? { type: attackScenario.type } : undefined
+      attackScenario: attackScenario ? { type: attackScenario.type } : undefined,
+      shipmentContext: JSON.stringify(shipmentContext)
     });
 
   } catch (error) {

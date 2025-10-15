@@ -42,6 +42,51 @@ model Alert {
   severity    String
   description String
   createdAt   DateTime @default(now())
+  feedback    AlertFeedback?
+}
+
+model AlertFeedback {
+  id                    String   @id @default(cuid())
+  alertId               String   @unique
+  alert                 Alert    @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  riskScoreAccurate     Boolean  // Was the risk score appropriate?
+  attackTypeCorrect     Boolean  // Was the attack type identified correctly?
+  actualAttackType      String?  // If wrong, what was the actual type?
+  actualRiskScore       Int?     // What should the risk score have been? (0-100)
+  notes                 String?  // Additional feedback notes
+  // Store original analysis for learning
+  aiRiskScore           Int      // Original AI risk score
+  aiAttackType          String   // Original AI attack type
+  shipmentContext       String   // JSON: delay, telemetry, scenario
+  createdAt             DateTime @default(now())
+}
+
+model Analysis {
+  id                 String   @id @default(cuid())
+  shipmentId         String
+  routeId            String
+  driverName         String
+  riskScore          Int      // 0-100
+  alertType          String   // Attack type or NORMAL_OPERATION
+  severity           String   // high/medium/low
+  description        String
+  shipmentContext    String   // JSON: delay, telemetry, scenario for feedback
+  analyzed           Boolean  @default(true)
+  source             String?  // 'openrouter' or 'fallback'
+  createdAt          DateTime @default(now())
+  feedback           AnalysisFeedback?
+}
+
+model AnalysisFeedback {
+  id                    String   @id @default(cuid())
+  analysisId            String   @unique
+  analysis              Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  riskScoreAccurate     Boolean
+  attackTypeCorrect     Boolean
+  actualAttackType      String?
+  actualRiskScore       Int?
+  notes                 String?
+  createdAt             DateTime @default(now())
 }
 
 model User {

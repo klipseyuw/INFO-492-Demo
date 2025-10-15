@@ -85,6 +85,7 @@ npm run dev
 
 ### 🤖 AI-Powered Threat Detection
 - **Real-time Analysis**: `/api/ai` evaluates shipment timing and attack simulations, logs all analysis steps with `[AI]` prefix
+- **Reinforcement Learning**: Human-in-the-loop feedback system using few-shot learning; rate alert accuracy via `AlertFeedbackModal`, and the AI learns from corrections in future predictions
 - **Fallback Resilience**: If OpenRouter fails or keys are missing, local simulation produces a compact, structured result (`source: 'fallback'`, `max_tokens ≈ 200`, `temperature: 0.4`)
 - **Risk Scoring**: 0–100; alerts are persisted only when `riskScore > 20` (Severity: >70 High, >40 Medium, else Low)
 - **Safety First**: Defense agent is **OFF by default** and must be explicitly enabled (never auto-enabled; checked before every AI call)
@@ -111,6 +112,7 @@ npm run dev
 - **Structured Data**: `Alert` model stores shipment routeId reference + description
 - **Dismissible**: `/api/alerts` DELETE supports removal; UI updates in place
 - **Analysis Reports**: `/api/analysis-report` generates rich post-incident report (explanations, recommendations, compliance list) consumed by `AnalysisReport` component
+- **Feedback System**: Click "🎯 Rate Accuracy" on any alert to provide feedback; rate risk score accuracy and attack type correctness to train the AI
 
 ### 🔮 Predictive Scheduling Defense
 - **Delay Prediction**: `/api/schedule-predict` uses linear regression and moving averages to forecast delivery delays
@@ -118,6 +120,32 @@ npm run dev
 - **Real-time Analysis**: Updates predictions based on historical shipment data and current route conditions
 - **Confidence Scoring**: Provides confidence levels (high/medium/low) based on available data points
 - **Predictive Alerts**: New "Predictive Warning" alert type with purple styling and 🔮 icon
+
+### 🎯 Reinforcement Learning System
+
+The AI agent learns from human feedback using **few-shot learning** (no custom model training required):
+
+#### How It Works:
+1. **AI makes a prediction**: Analyzes a shipment and assigns risk score + attack type
+2. **You provide feedback**: Click "🎯 Rate Accuracy" on any alert
+   - Was the risk score appropriate? (Yes/No)
+   - Was the attack type correct? (Yes/No)
+   - Provide corrections if needed (actual risk score 0-100, actual attack type)
+   - Add optional notes for context
+3. **AI learns immediately**: Next analysis includes recent accurate feedback examples in the prompt
+4. **Continuous improvement**: The more feedback you provide, the more accurate future predictions become
+
+#### Technical Implementation:
+- **Few-Shot Learning**: No model fine-tuning needed; feedback examples are injected into prompts
+- **Stored in Database**: `AlertFeedback` model stores corrections with original AI predictions
+- **Automatic Enrichment**: `/api/ai` fetches 5 most recent accurate feedback examples before each analysis
+- **Free & Effective**: Works with any OpenRouter model without additional costs
+
+#### Best Practices:
+- Rate alerts immediately after simulations for best learning
+- Provide detailed notes explaining why predictions were wrong
+- Focus on correcting high-severity alerts first
+- Review learning examples in database via Prisma Studio
 
 ### 🧪 Integrated Testing & Simulation
 Generate realistic operational + adversarial data:
@@ -133,18 +161,20 @@ npm run simulate:single  # Single route test for quick validation
 
 
 ```
-app/api/ai/route.ts                # Risk analysis (OpenRouter + fallback)
+app/api/ai/route.ts                # Risk analysis (OpenRouter + fallback + reinforcement learning)
 app/api/agent/toggle/route.ts      # Upsert user, toggle agentActive
 app/api/agent/status/route.ts      # Agent status + in-memory activity log
 app/api/shipments/route.ts         # Create/list shipments (latest 50)
 app/api/alerts/route.ts            # List/delete alerts (latest 100)
+app/api/alerts/feedback/route.ts   # Submit/retrieve feedback for AI learning
 app/api/alerts/predictive/route.ts # Predictive warning alert generation
 app/api/analysis-report/route.ts   # Builds incident report from alert+shipment
 app/api/simulate-attack/route.ts   # Simulate suspicious shipment + analysis
 components/AgentToggle.tsx         # Agent activation control
 components/AgentStatusMonitor.tsx  # Live activity/status display
 components/ShipmentTable.tsx       # Adaptive polling shipment list
-components/AlertFeed.tsx           # Adaptive polling alert list
+components/AlertFeed.tsx           # Adaptive polling alert list with feedback button
+components/AlertFeedbackModal.tsx  # Modal for rating alert accuracy (reinforcement learning)
 components/AnalysisReport.tsx      # Modal for analysis report
 components/SimulateAttackButton.tsx# Triggers attack scenario & analysis
 lib/prisma.ts                      # Prisma client singleton

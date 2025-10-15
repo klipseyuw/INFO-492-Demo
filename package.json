@@ -18,7 +18,8 @@
     "test:ai": "node tests/test-ai.js",
     "test:attack": "node tests/test-attack-sim.js",
     "test:final": "node tests/final-test.js",
-    "test": "npm run test:normal && npm run test:ai && npm run test:attack"
+    "test": "npm run test:normal && npm run test:ai && npm run test:attack",
+    "clear": "tsx scripts/clearData.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.17.0",
@@ -27,6 +28,7 @@
     "next": "15.5.4",
     "node-fetch": "^3.3.2",
     "openai": "^6.2.0",
+    "package.json": "^0.0.0",
     "prisma": "^6.17.0",
     "react": "19.1.0",
     "react-dom": "19.1.0"

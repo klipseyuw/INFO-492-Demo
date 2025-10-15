@@ -5,18 +5,23 @@ Purpose: Equip AI coding agents with precise, project-specific context for safe,
 
 ### 1) Architecture & Data Flow
 This is a Next.js App Router (TypeScript) project. The serverless API lives in `app/api/*`:
-- `ai/route.ts`: Risk analysis. Calls OpenRouter (model: `z-ai/glm-4.5-air:free`) with `response_format: json_object`; robust JSON extraction; falls back to local simulation if needed. Alerts are persisted only when `riskScore > 20`. Severity: `>70 high`, `>40 medium`, else `low`. All analysis steps are logged.
+- `ai/route.ts`: Risk analysis. Calls OpenRouter (model: `z-ai/glm-4.5-air:free`) with `response_format: json_object`; robust JSON extraction with multi-stage fallback (strip markdown, balanced brace extraction, regex salvage); falls back to deterministic analysis if API unavailable. **Reinforcement Learning**: Fetches recent accurate feedback from `/api/alerts/feedback` and enriches the prompt with 5 learning examples for few-shot learning. Alerts are persisted only when `riskScore > 20`. Severity: `>70 high`, `>40 medium`, else `low`. All analysis steps are logged. Returns `shipmentContext` JSON for feedback submission.
 - `agent/toggle/route.ts`: Upserts `User` and toggles `agentActive`. GET returns status. Agent must remain OFF unless explicitly enabled.
-- `agent/status/route.ts`: Returns agent status and recent activities from in-memory log (`lib/agentActivity.ts`). States: inactive/idle/active.
+- `agent/status/route.ts`: Returns agent status and recent activities from in-memory log (`lib/agentActivity.ts`). States: inactive/idle/active. POST accepts `system_check` action.
 - `shipments/route.ts`: Create and list latest 50 shipments. Accepts optional telemetry (origin/destination/GPS/coords/speed/heading) and normalizes types.
 - `alerts/route.ts`: List latest 100 and delete by id.
+- `alerts/feedback/route.ts`: POST submits user feedback (risk score accuracy, attack type correctness, corrections) for reinforcement learning. GET retrieves learning examples (optionally filtered to accurate ones) formatted for AI prompt enrichment. Feedback is stored in `AlertFeedback` model.
+- `analyses/route.ts`: Lists ALL AI predictions (including risk ≤ 20 that don't create alerts) from AgentActivity metadata. Enables feedback on safe predictions.
+- `alerts/predictive/route.ts`: Generates predictive warning alerts when predicted delay deviation exceeds threshold (default 30 min).
 - `analysis-report/route.ts`: Builds structured incident report from latest alert + shipment details.
 - `simulate-attack/route.ts`: Creates a suspicious shipment and (if agent active) immediately triggers `/api/ai` for analysis.
-Client components (`components/*`) poll endpoints with adaptive intervals (faster when tab visible) and always provide manual Refresh.
+- `schedule-predict/route.ts`: Linear regression + moving average delay prediction with confidence scoring.
+- `health/route.ts`: Simple health check endpoint.
+Client components (`components/*`) poll endpoints with adaptive intervals (faster when tab visible) and always provide manual Refresh. `AlertFeedbackModal` provides UI for rating alert accuracy.
 
 
 ### 2) Persistence & Models (Prisma `schema.prisma`)
-Models: `Shipment`, `Alert`, `User(agentActive)`, `AgentActivity`. Dev DB is SQLite via `DATABASE_URL` (can swap to Postgres in prod; do not hardcode provider logic). Use `findMany({ orderBy, take })` to bound list sizes.
+Models: `Shipment` (with optional telemetry + `predictedDelay`), `Alert`, `AlertFeedback` (1:1 with Alert), `User(agentActive)`, `AgentActivity`. Dev DB is SQLite via `DATABASE_URL` (can swap to Postgres in prod; do not hardcode provider logic). Use `findMany({ orderBy, take })` to bound list sizes. Shipment telemetry fields (origin, destination, gpsOnline, lastKnownLat/Lng, speedKph, headingDeg) are optional and normalized to proper types on creation. `AlertFeedback` stores human ratings for reinforcement learning via few-shot prompting.
 
 
 ### 3) Risk & Alert Rules
@@ -42,7 +47,8 @@ Models: `Shipment`, `Alert`, `User(agentActive)`, `AgentActivity`. Dev DB is SQL
 - Simulations: `npm run simulate` (continuous) | `npm run simulate:single` (one-off)
 - Prisma: `npm run db:generate` | `npm run db:migrate` | `npm run db:studio`
 - Data reset: `npm exec tsx scripts/clearData.ts` (clears Shipments + Alerts)
-- Tests: `npm run test` aggregates `tests/test-*.js` scenarios (normal, ai, attack)
+- Tests: `npm run test` aggregates `tests/test-*.js` scenarios (normal, ai, attack). Note: test files may not exist yet; scripts reference them in package.json.
+- Lint: `npm run lint` (ESLint checks)
 
 
 ### 7) Frontend Patterns
@@ -68,7 +74,7 @@ Models: `Shipment`, `Alert`, `User(agentActive)`, `AgentActivity`. Dev DB is SQL
 
 
 ### 11) Quick File Map
-`app/api/ai/route.ts` (analysis + fallback) | `app/api/agent/{toggle,status}/route.ts` | `app/api/shipments/route.ts` | `app/api/alerts/route.ts` | `app/api/analysis-report/route.ts` | `app/api/simulate-attack/route.ts` | `components/{AgentToggle,AgentStatusMonitor,ShipmentTable,AlertFeed,AnalysisReport,SimulateAttackButton}.tsx` | `lib/{prisma.ts,agentActivity.ts}` | `scripts/simulateRoutes.ts` | `prisma/schema.prisma` | `tests/*`
+`app/api/ai/route.ts` (analysis + fallback + reinforcement learning) | `app/api/agent/{toggle,status}/route.ts` | `app/api/shipments/route.ts` | `app/api/alerts/route.ts` | `app/api/alerts/feedback/route.ts` (reinforcement learning) | `app/api/analyses/route.ts` (all predictions including safe) | `app/api/alerts/predictive/route.ts` | `app/api/analysis-report/route.ts` | `app/api/simulate-attack/route.ts` | `app/api/schedule-predict/route.ts` | `app/api/health/route.ts` | `components/{AgentToggle,AgentStatusMonitor,ShipmentTable,AlertFeed,RecentAnalyses,AlertFeedbackModal,AnalysisReport,SimulateAttackButton,DelayPredictionChart}.tsx` | `lib/{prisma.ts,agentActivity.ts}` | `scripts/simulateRoutes.ts` | `prisma/schema.prisma`
 
 
 ### 12) PR Expectations
