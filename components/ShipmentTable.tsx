@@ -228,7 +228,7 @@ export default function ShipmentTable({ refreshTrigger }: ShipmentTableProps) {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {shipment.predictedDelay !== null ? (
+                        {shipment.predictedDelay !== null && shipment.predictedDelay !== undefined ? (
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                             shipment.predictedDelay > 30 ? "bg-purple-100 text-purple-800" :
                             shipment.predictedDelay > 15 ? "bg-orange-100 text-orange-800" :

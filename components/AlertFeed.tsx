@@ -19,6 +19,7 @@ export default function AlertFeed({ refreshTrigger }: AlertFeedProps) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Feedback is intentionally disabled in AlertFeed; use RecentAnalyses instead
 
   useEffect(() => {
     fetchAlerts();
@@ -174,6 +175,8 @@ export default function AlertFeed({ refreshTrigger }: AlertFeedProps) {
                     <span>Route: {alert.shipmentId}</span>
                     <span>{formatDateTime(alert.createdAt)}</span>
                   </div>
+
+                  {/* Feedback disabled here by design; see Recent Analyses panel for rating */}
                 </div>
                 
                 <button
@@ -190,6 +193,8 @@ export default function AlertFeed({ refreshTrigger }: AlertFeedProps) {
           ))}
         </div>
       )}
+
+      {/* Feedback modal removed: feedback is only available from Recent Analyses */}
     </div>
   );
 }
