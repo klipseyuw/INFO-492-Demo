@@ -260,6 +260,102 @@ Follow this checklist to ensure successful setup:
 - [ ] **Test simulation**: Run `npm run simulate:single` in new terminal
 - [ ] **Verify alerts**: Check that alerts appear in the dashboard
 
+## 🧑‍💻 Login & Logout Guide (for All Users)
+
+### 🔐 Login
+
+The Logistics Defense AI Platform uses a **passwordless authentication system**, meaning users can log in securely using their **email** or **phone number** — no password required.
+
+**Steps to log in:**
+
+1. Open the platform at **http://localhost:3000/login** (or your deployed URL)
+2. Choose **Email Login** or **Phone Login** tab
+3. Enter your email address or phone number
+4. Click **"Send Verification Code"**
+5. Check your email (or console output in development mode) for the 6-digit code
+6. Enter the code and click **"Verify & Login"**
+7. ✅ You'll be redirected to your personalized **Dashboard**
+
+**Notes:**
+- If your email or phone number is not registered, the system will **automatically create a new user account**
+- Verification codes are valid for **5 minutes**
+- In development mode, verification codes appear in the **server terminal** console
+- In production, codes can be sent via **SendGrid** (email) or **Twilio** (SMS) for real delivery
+- Rate limit: Maximum **3 code requests per minute** per IP address
+
+**Development Mode Tips:**
+- Watch the terminal where `npm run dev` is running
+- You'll see output like:
+  ```
+  🔐 VERIFICATION CODE for test@example.com:
+  📧 Code: 123456
+  ⏰ Expires: 10/15/2024, 8:30:00 PM
+  👤 User ID: clxxx123
+  ```
+- In development, an alert popup may also display the code
+
+---
+
+### 🚪 Logout
+
+Logging out is simple and secure:
+
+1. Click the **"Logout"** button in the top-right corner of the navigation bar
+2. Your authentication session and cookies are immediately cleared on the server
+3. You will be redirected to the **Login** page
+4. Access to protected pages (like `/dashboard`) will now require re-login
+
+**What happens during logout:**
+- JWT session token is invalidated
+- `auth_token` cookie is cleared from your browser
+- All cached authentication data is removed
+- You cannot access protected routes until logging in again
+
+---
+
+### 🔒 Security & Sessions
+
+**Session Duration:**
+- JWT tokens expire after **7 days** of inactivity
+- Verification codes expire after **5 minutes**
+
+**Protected Routes:**
+- `/dashboard` - Requires authentication
+- All `/api/*` routes (except `/api/auth/*` and `/api/health`)
+
+**Public Routes:**
+- `/login` - Login page (always accessible)
+- `/api/auth/*` - Authentication endpoints
+- `/api/health` - Health check endpoint
+
+**Session Persistence:**
+- Your login session persists across browser tabs and page refreshes
+- Sessions survive server restarts (stored in JWT token)
+- Close browser to auto-logout (cookie-based)
+
+---
+
+### 🧰 Developer Notes
+
+- **No `.env` configuration needed for end users** — only the server operator needs environment variables
+- All login verification and JWT session logic happen on the backend
+- New users are automatically created when they first log in with an unregistered email/phone
+- User accounts are linked to the AI agent settings (each user has individual `agentActive` state)
+
+**For Server Operators:**
+
+Ensure your `.env` file contains:
+```env
+DATABASE_URL="file:./prisma/dev.db"
+NEXTAUTH_SECRET="your-secure-random-secret-key"
+OPENROUTER_API_KEY="your-openrouter-api-key"
+```
+
+Generate a secure `NEXTAUTH_SECRET`:
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
 ## 🧪 Testing the Platform
 
 ### 1. Basic Functionality Test
