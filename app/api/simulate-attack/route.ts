@@ -184,6 +184,9 @@ export async function POST(req: Request) {
     let defenseAnalysis = null;
     if (user.agentActive) {
       try {
+        // Extract auth token from the incoming request to forward it
+        const cookieHeader = req.headers.get('cookie') || '';
+        
         // Call the defense agent to analyze this new shipment
         const defenseResponse = await axios.post(
           `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/ai`,
@@ -204,7 +207,10 @@ export async function POST(req: Request) {
             headingDeg,
           },
           {
-            headers: { "Content-Type": "application/json" }
+            headers: { 
+              "Content-Type": "application/json",
+              "Cookie": cookieHeader // Forward authentication cookies
+            }
           }
         );
         
