@@ -148,6 +148,19 @@ export async function POST(req: Request) {
     }
 
     // Create the shipment with attack scenario - this is just suspicious data, no alert yet
+    // Generate cargo details for this shipment
+    const CARGO_ITEMS = [
+      { name: 'GPUs', unitCost: 1200 },
+      { name: 'Medical Supplies', unitCost: 300 },
+      { name: 'Pharmaceuticals', unitCost: 800 },
+      { name: 'Consumer Electronics', unitCost: 500 },
+      { name: 'Fresh Produce', unitCost: 20 },
+      { name: 'Industrial Sensors', unitCost: 350 },
+      { name: 'Network Equipment', unitCost: 900 }
+    ];
+    const cargo = CARGO_ITEMS[Math.floor(Math.random() * CARGO_ITEMS.length)];
+    const cargoQuantity = Math.floor(Math.random() * 90) + 10; // 10-100 units
+    const cargoTotalValue = cargoQuantity * cargo.unitCost;
     // The defense agent should detect this as an anomaly
     const shipment = await prisma.shipment.create({
       data: ({
@@ -165,6 +178,10 @@ export async function POST(req: Request) {
         lastKnownLng,
         speedKph,
         headingDeg,
+        cargoName: cargo.name,
+        cargoQuantity,
+        cargoUnitCost: cargo.unitCost,
+        cargoTotalValue,
       } as any)
     });
 
@@ -205,6 +222,10 @@ export async function POST(req: Request) {
             lastKnownLng,
             speedKph,
             headingDeg,
+            cargoName: cargo.name,
+            cargoQuantity,
+            cargoUnitCost: cargo.unitCost,
+            cargoTotalValue,
           },
           {
             headers: { 

@@ -10,7 +10,8 @@ export async function POST(req: Request) {
       attackTypeCorrect,
       actualAttackType,
       actualRiskScore,
-      notes
+      notes,
+      valuePreference
     } = await req.json();
 
     if (!analysisId) {
@@ -35,21 +36,23 @@ export async function POST(req: Request) {
     // Create or update feedback for this analysis
     const feedback = await prisma.analysisFeedback.upsert({
       where: { analysisId },
-      update: {
+      update: ({
         riskScoreAccurate,
         attackTypeCorrect,
         actualAttackType,
         actualRiskScore,
-        notes
-      },
-      create: {
+        notes,
+        valuePreference
+      } as any),
+      create: ({
         analysisId,
         riskScoreAccurate,
         attackTypeCorrect,
         actualAttackType,
         actualRiskScore,
-        notes
-      }
+        notes,
+        valuePreference
+      } as any)
     });
 
     console.log(

@@ -11,7 +11,7 @@ interface Analysis {
   severity: string;
   description: string;
   createdAt: string;
-  metadata: string;
+  metadata: string; // JSON string of shipment context
 }
 
 interface RecentAnalysesProps {
@@ -75,6 +75,27 @@ export default function RecentAnalyses({ refreshTrigger }: RecentAnalysesProps) 
     });
   };
 
+  const renderCargoLine = (metadata: string) => {
+    try {
+      const ctx = JSON.parse(metadata || '{}') as any;
+      if (!ctx || !ctx.cargoName) return null;
+      const qty = typeof ctx.cargoQuantity === 'number' ? ctx.cargoQuantity : undefined;
+      const unit = typeof ctx.cargoUnitCost === 'number' ? ctx.cargoUnitCost : undefined;
+      const total = typeof ctx.cargoTotalValue === 'number' ? ctx.cargoTotalValue : (qty && unit ? qty * unit : undefined);
+      return (
+        <div className="mt-1 text-xs text-gray-600">
+          <span className="font-medium text-gray-700">Cargo:</span>{' '}
+          {ctx.cargoName}
+          {qty ? ` × ${qty}` : ''}
+          {typeof unit === 'number' ? ` @ $${unit.toLocaleString()}` : ''}
+          {typeof total === 'number' ? ` (≈ $${Math.round(total).toLocaleString()})` : ''}
+        </div>
+      );
+    } catch {
+      return null;
+    }
+  };
+
   if (loading) {
     return (
       <div className="card p-6">
@@ -136,6 +157,7 @@ export default function RecentAnalyses({ refreshTrigger }: RecentAnalysesProps) 
                   </div>
                   
                   <p className="text-gray-800 text-sm mb-1">{analysis.description}</p>
+                  {renderCargoLine(analysis.metadata)}
                   
                   <div className="flex justify-between items-center text-xs text-gray-600">
                     <span>Route: {analysis.shipmentId || 'N/A'}</span>

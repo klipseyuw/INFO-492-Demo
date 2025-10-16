@@ -24,6 +24,12 @@ export async function POST(req: Request) {
       speedKph,
       headingDeg,
       routeStatus
+      ,
+      // Cargo
+      cargoName,
+      cargoQuantity,
+      cargoUnitCost,
+      cargoTotalValue
     } = await req.json();
 
     // Check if user exists and agent is active
@@ -56,6 +62,13 @@ export async function POST(req: Request) {
   if (typeof speedKph === 'number') telemetryLines.push(`- Speed: ${speedKph} kph`);
   if (typeof headingDeg === 'number') telemetryLines.push(`- Heading: ${headingDeg}°`);
   if (routeStatus) telemetryLines.push(`- Route Status: ${routeStatus}`);
+  // Cargo summary
+  if (cargoName) {
+    const qty = typeof cargoQuantity === 'number' ? cargoQuantity : undefined;
+    const unit = typeof cargoUnitCost === 'number' ? cargoUnitCost : undefined;
+    const total = typeof cargoTotalValue === 'number' ? cargoTotalValue : (qty && unit ? qty * unit : undefined);
+    telemetryLines.push(`- Cargo: ${cargoName}${qty ? ` x${qty}` : ''}${unit ? ` @ $${unit.toLocaleString()}` : ''}${total ? ` (≈ $${Math.round(total).toLocaleString()})` : ''}`);
+  }
 
   // Fetch recent feedback for few-shot learning
   let learningContext = '';
@@ -66,7 +79,14 @@ export async function POST(req: Request) {
       learningContext = '\n\nLEARNING FROM PAST ACCURATE PREDICTIONS:\n';
       feedbackData.examples.forEach((ex: any, i: number) => {
         learningContext += `\nExample ${i + 1}:\n`;
-        learningContext += `Scenario: Delay=${Math.round(ex.scenario.delayMinutes || 0)}min, GPS=${ex.scenario.gpsOnline}, Speed=${ex.scenario.speedKph}kph\n`;
+        learningContext += `Scenario: Delay=${Math.round(ex.scenario.delayMinutes || 0)}min, GPS=${ex.scenario.gpsOnline}, Speed=${ex.scenario.speedKph}kph`;
+        if (ex.scenario.cargoName) {
+          learningContext += `, Cargo=${ex.scenario.cargoName}${ex.scenario.cargoQuantity ? ` x${ex.scenario.cargoQuantity}` : ''}`;
+        }
+        if (ex.valuePreference) {
+          learningContext += `, ValuePreference=${ex.valuePreference}`;
+        }
+        learningContext += `\n`;
         learningContext += `Correct Assessment: Risk=${ex.actualResult.riskScore}, Type=${ex.actualResult.attackType}\n`;
       });
       console.log(`[AI] Enriching prompt with ${feedbackData.examples.length} learning examples`);
@@ -128,6 +148,9 @@ Identify the most likely threat based on patterns:
 - CYBER_ATTACK: System anomalies, data inconsistencies
 - NORMAL_OPERATION: No threats detected
 ${learningContext}
+
+PRIORITY NOTE:
+- The shipment's cargo value should only slightly influence risk priority. High-value cargo may nudge risk a bit higher for the same signals, and low-value cargo may nudge slightly lower. Do not exceed ±5 points due to value alone.
 
 Return JSON only:
 {
@@ -422,6 +445,16 @@ Return JSON only:
         fallbackActions.push("Check cargo security");
       }
 
+      // Cargo value slight modifier (±5 max)
+      if (typeof cargoTotalValue === 'number' || (typeof cargoQuantity === 'number' && typeof cargoUnitCost === 'number')) {
+        const total = typeof cargoTotalValue === 'number' ? cargoTotalValue : (cargoQuantity as number) * (cargoUnitCost as number);
+        if (Number.isFinite(total)) {
+          // Heuristic thresholds
+          if (total > 100000) fallbackRiskScore += 4; // high value
+          else if (total < 5000) fallbackRiskScore -= 2; // low value
+        }
+      }
+
       // Attack scenario modifier
       if (attackScenario) {
         fallbackRiskScore += 20;
@@ -481,7 +514,11 @@ Return JSON only:
         speedKph,
         origin,
         destination,
-        attackScenario: attackScenario?.type
+        attackScenario: attackScenario?.type,
+        cargoName,
+        cargoQuantity,
+        cargoUnitCost,
+        cargoTotalValue
       };
       await prisma.analysis.create({
         data: {
@@ -534,7 +571,11 @@ Return JSON only:
       speedKph,
       origin,
       destination,
-      attackScenario: attackScenario?.type
+      attackScenario: attackScenario?.type,
+      cargoName,
+      cargoQuantity,
+      cargoUnitCost,
+      cargoTotalValue
     };
 
     return NextResponse.json({

@@ -25,6 +25,7 @@ export default function AlertFeedbackModal({
   const [actualAttackType, setActualAttackType] = useState("");
   const [actualRiskScore, setActualRiskScore] = useState("");
   const [notes, setNotes] = useState("");
+  const [valuePreference, setValuePreference] = useState<"higher" | "lower" | "neutral">("neutral");
   const [submitting, setSubmitting] = useState(false);
 
   // Derive risk score from severity
@@ -46,6 +47,7 @@ export default function AlertFeedbackModal({
           actualAttackType: attackTypeCorrect ? null : actualAttackType,
           actualRiskScore: riskScoreAccurate ? null : parseInt(actualRiskScore) || null,
           notes,
+          valuePreference: valuePreference === 'neutral' ? null : valuePreference,
           aiRiskScore,
           aiAttackType: alertType,
           shipmentContext: JSON.stringify({ id, severity, alertType, type: 'alert' })
@@ -57,7 +59,8 @@ export default function AlertFeedbackModal({
           attackTypeCorrect,
           actualAttackType: attackTypeCorrect ? null : actualAttackType,
           actualRiskScore: riskScoreAccurate ? null : parseInt(actualRiskScore) || null,
-          notes
+          notes,
+          valuePreference: valuePreference === 'neutral' ? null : valuePreference
         });
       }
 
@@ -222,6 +225,46 @@ export default function AlertFeedbackModal({
               rows={3}
               placeholder="Any additional context or observations..."
             />
+          </div>
+
+          {/* Value Preference */}
+          <div className="space-y-2">
+            <label className="block font-semibold text-gray-900">
+              For this cargo, should incidents be prioritized higher or lower regardless of cost?
+            </label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setValuePreference('lower')}
+                className={`flex-1 py-2 px-4 rounded-lg border-2 transition-all ${
+                  valuePreference === 'lower'
+                    ? "border-orange-500 bg-orange-50 text-orange-700"
+                    : "border-gray-300 hover:border-orange-400"
+                }`}
+              >
+                Lower Value
+              </button>
+              <button
+                onClick={() => setValuePreference('neutral')}
+                className={`flex-1 py-2 px-4 rounded-lg border-2 transition-all ${
+                  valuePreference === 'neutral'
+                    ? "border-gray-500 bg-gray-50 text-gray-700"
+                    : "border-gray-300 hover:border-gray-400"
+                }`}
+              >
+                Neutral
+              </button>
+              <button
+                onClick={() => setValuePreference('higher')}
+                className={`flex-1 py-2 px-4 rounded-lg border-2 transition-all ${
+                  valuePreference === 'higher'
+                    ? "border-purple-500 bg-purple-50 text-purple-700"
+                    : "border-gray-300 hover:border-purple-400"
+                }`}
+              >
+                Higher Value
+              </button>
+            </div>
+            <p className="text-xs text-gray-600">Example: Medical supplies may warrant higher priority than consumer electronics even if priced lower.</p>
           </div>
 
           {/* Info Box */}

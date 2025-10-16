@@ -29,6 +29,11 @@ model Shipment {
   lastKnownLng  Float?
   speedKph      Int?
   headingDeg    Int?
+  // Cargo details
+  cargoName      String?
+  cargoQuantity  Int?
+  cargoUnitCost  Float?
+  cargoTotalValue Float?
   // Predictive scheduling fields
   predictedDelay Float?  // Predicted delay in minutes
   lastUpdated   DateTime @updatedAt
@@ -54,6 +59,8 @@ model AlertFeedback {
   actualAttackType      String?  // If wrong, what was the actual type?
   actualRiskScore       Int?     // What should the risk score have been? (0-100)
   notes                 String?  // Additional feedback notes
+  // Value preference for non-economic priority: 'higher' or 'lower'
+  valuePreference       String?  // 'higher' | 'lower'
   // Store original analysis for learning
   aiRiskScore           Int      // Original AI risk score
   aiAttackType          String   // Original AI attack type
@@ -86,6 +93,8 @@ model AnalysisFeedback {
   actualAttackType      String?
   actualRiskScore       Int?
   notes                 String?
+  // Value preference for non-economic priority: 'higher' or 'lower'
+  valuePreference       String?
   createdAt             DateTime @default(now())
 }
 

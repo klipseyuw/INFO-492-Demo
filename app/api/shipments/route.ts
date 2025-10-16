@@ -6,7 +6,7 @@ export async function GET(req: Request) {
     const shipments = await prisma.shipment.findMany({
       orderBy: { lastUpdated: 'desc' },
       take: 50, // Limit to 50 most recent shipments
-      select: {
+      select: ({
         id: true,
         routeId: true,
         driverName: true,
@@ -21,10 +21,15 @@ export async function GET(req: Request) {
         lastKnownLng: true,
         speedKph: true,
         headingDeg: true,
+        // Cargo fields
+        cargoName: true,
+        cargoQuantity: true,
+        cargoUnitCost: true,
+        cargoTotalValue: true,
         predictedDelay: true,
         lastUpdated: true,
         createdAt: true,
-      },
+      } as any),
     });
 
     return NextResponse.json({
@@ -57,7 +62,12 @@ export async function POST(req: Request) {
       lastKnownLat,
       lastKnownLng,
       speedKph,
-      headingDeg
+      headingDeg,
+      // Cargo fields
+      cargoName,
+      cargoQuantity,
+      cargoUnitCost,
+      cargoTotalValue
     } = await req.json();
 
     if (!routeId || !driverName || !expectedETA) {
@@ -83,6 +93,15 @@ export async function POST(req: Request) {
         lastKnownLng: typeof lastKnownLng === 'number' ? lastKnownLng : null,
         speedKph: typeof speedKph === 'number' ? Math.round(speedKph) : null,
         headingDeg: typeof headingDeg === 'number' ? Math.round(headingDeg) : null,
+        // Cargo normalization
+        cargoName: cargoName ? String(cargoName) : null,
+        cargoQuantity: typeof cargoQuantity === 'number' ? Math.round(cargoQuantity) : null,
+        cargoUnitCost: typeof cargoUnitCost === 'number' ? Number(cargoUnitCost) : (cargoUnitCost != null ? Number(cargoUnitCost) : null),
+        cargoTotalValue: typeof cargoTotalValue === 'number'
+          ? Number(cargoTotalValue)
+          : (typeof cargoQuantity === 'number' && (typeof cargoUnitCost === 'number' || cargoUnitCost != null)
+              ? Number(cargoQuantity) * Number(cargoUnitCost)
+              : null),
       } as any),
     });
 

@@ -21,7 +21,29 @@ export async function GET(req: Request) {
       });
       if (alert) {
         shipment = await prisma.shipment.findFirst({
-          where: { routeId: alert.shipmentId }
+          where: { routeId: alert.shipmentId },
+          select: ({
+            routeId: true,
+            driverName: true,
+            expectedETA: true,
+            actualETA: true,
+            routeStatus: true,
+            origin: true,
+            destination: true,
+            gpsOnline: true,
+            lastKnownAt: true,
+            lastKnownLat: true,
+            lastKnownLng: true,
+            speedKph: true,
+            headingDeg: true,
+            createdAt: true,
+            id: true,
+            // Cargo
+            cargoName: true,
+            cargoQuantity: true,
+            cargoUnitCost: true,
+            cargoTotalValue: true,
+          } as any)
         });
       }
     } else if (shipmentId) {
@@ -30,7 +52,29 @@ export async function GET(req: Request) {
         orderBy: { createdAt: 'desc' }
       });
       shipment = await prisma.shipment.findFirst({
-        where: { routeId: shipmentId }
+        where: { routeId: shipmentId },
+        select: ({
+          routeId: true,
+          driverName: true,
+          expectedETA: true,
+          actualETA: true,
+          routeStatus: true,
+          origin: true,
+          destination: true,
+          gpsOnline: true,
+          lastKnownAt: true,
+          lastKnownLat: true,
+          lastKnownLng: true,
+          speedKph: true,
+          headingDeg: true,
+          createdAt: true,
+          id: true,
+          // Cargo
+          cargoName: true,
+          cargoQuantity: true,
+          cargoUnitCost: true,
+          cargoTotalValue: true,
+        } as any)
       });
     }
 
@@ -39,8 +83,8 @@ export async function GET(req: Request) {
     }
 
     // Generate comprehensive analysis report
-    const expectedTime = new Date(shipment.expectedETA).getTime();
-    const actualTime = shipment.actualETA ? new Date(shipment.actualETA).getTime() : Date.now();
+  const expectedTime = new Date((shipment as any).expectedETA).getTime();
+  const actualTime = (shipment as any).actualETA ? new Date((shipment as any).actualETA).getTime() : Date.now();
     const delayMinutes = (actualTime - expectedTime) / (1000 * 60);
     
     const report = {
@@ -57,13 +101,19 @@ export async function GET(req: Request) {
 
       // Incident Details
       incidentDetails: {
-        shipmentId: shipment.routeId,
-        driverName: shipment.driverName,
+        shipmentId: (shipment as any).routeId,
+        driverName: (shipment as any).driverName,
         detectionTime: alert.createdAt,
-        expectedETA: shipment.expectedETA,
-        actualETA: shipment.actualETA,
+        expectedETA: (shipment as any).expectedETA,
+        actualETA: (shipment as any).actualETA,
         delayMinutes: Math.round(delayMinutes),
-        currentStatus: shipment.routeStatus
+        currentStatus: (shipment as any).routeStatus,
+        cargo: (shipment as any).cargoName ? {
+          name: (shipment as any).cargoName,
+          quantity: (shipment as any).cargoQuantity,
+          unitCost: (shipment as any).cargoUnitCost,
+          estimatedValue: (shipment as any).cargoTotalValue
+        } : null
       },
 
       // Threat Analysis
@@ -71,7 +121,7 @@ export async function GET(req: Request) {
         alertType: alert.type,
         description: alert.description,
         severity: alert.severity,
-        indicators: generateThreatIndicators(alert.type, delayMinutes, shipment),
+  indicators: generateThreatIndicators(alert.type, delayMinutes, shipment as any),
         potentialCauses: generatePotentialCauses(alert.type),
         riskFactors: generateRiskFactors(alert.type, delayMinutes)
       },

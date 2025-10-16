@@ -22,6 +22,11 @@ interface Shipment {
   headingDeg?: number | null;
   // Predictive scheduling
   predictedDelay?: number | null;
+  // Cargo
+  cargoName?: string | null;
+  cargoQuantity?: number | null;
+  cargoUnitCost?: number | null;
+  cargoTotalValue?: number | null;
 }
 
 interface ShipmentTableProps {
@@ -271,6 +276,19 @@ export default function ShipmentTable({ refreshTrigger }: ShipmentTableProps) {
                               <div>
                                 {typeof shipment.headingDeg === 'number' ? `${shipment.headingDeg}°` : '—'}
                                 {typeof shipment.speedKph === 'number' ? ` @ ${shipment.speedKph} kph` : ''}
+                              </div>
+                            </div>
+                            <div className="md:col-span-3">
+                              <div className="text-gray-600 text-xs">Cargo</div>
+                              <div>
+                                {shipment.cargoName ? (
+                                  <span>
+                                    {shipment.cargoName}
+                                    {typeof shipment.cargoQuantity === 'number' ? ` × ${shipment.cargoQuantity}` : ''}
+                                    {typeof shipment.cargoUnitCost === 'number' ? ` @ $${shipment.cargoUnitCost.toLocaleString()}` : ''}
+                                    {typeof shipment.cargoTotalValue === 'number' ? ` (≈ $${Math.round(shipment.cargoTotalValue).toLocaleString()})` : ''}
+                                  </span>
+                                ) : '—'}
                               </div>
                             </div>
                           </div>

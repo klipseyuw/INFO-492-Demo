@@ -11,6 +11,7 @@ export async function POST(req: Request) {
       actualAttackType,
       actualRiskScore,
       notes,
+      valuePreference,
       aiRiskScore,
       aiAttackType,
       shipmentContext
@@ -38,24 +39,26 @@ export async function POST(req: Request) {
     // Create or update feedback
     const feedback = await prisma.alertFeedback.upsert({
       where: { alertId },
-      update: {
+      update: ({
         riskScoreAccurate,
         attackTypeCorrect,
         actualAttackType,
         actualRiskScore,
-        notes
-      },
-      create: {
+        notes,
+        valuePreference
+      } as any),
+      create: ({
         alertId,
         riskScoreAccurate,
         attackTypeCorrect,
         actualAttackType,
         actualRiskScore,
         notes,
+        valuePreference,
         aiRiskScore: aiRiskScore || 0,
         aiAttackType: aiAttackType || 'unknown',
         shipmentContext: shipmentContext || '{}'
-      }
+      } as any)
     });
 
     console.log(`[FEEDBACK] Alert ${alertId}: Risk=${riskScoreAccurate ? '✓' : '✗'}, Type=${attackTypeCorrect ? '✓' : '✗'}`);
@@ -109,7 +112,8 @@ export async function GET(req: Request) {
             attackType: fb.actualAttackType || fb.aiAttackType,
             wasAccurate: fb.riskScoreAccurate && fb.attackTypeCorrect
           },
-          feedback: fb.notes
+          feedback: fb.notes,
+          valuePreference: (fb as any).valuePreference || null
         };
       } catch {
         return null;
