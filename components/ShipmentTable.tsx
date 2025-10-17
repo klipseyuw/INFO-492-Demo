@@ -38,6 +38,16 @@ export default function ShipmentTable({ refreshTrigger }: ShipmentTableProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [currentTime, setCurrentTime] = useState<number>(0);
+
+  // Update current time on client-side only to avoid hydration errors
+  useEffect(() => {
+    setCurrentTime(Date.now());
+    const timeInterval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 60000); // Update every minute
+    return () => clearInterval(timeInterval);
+  }, []);
 
   useEffect(() => {
     fetchShipments();
@@ -180,7 +190,9 @@ export default function ShipmentTable({ refreshTrigger }: ShipmentTableProps) {
             <tbody className="bg-white divide-y divide-gray-200">
               {shipments.map((shipment) => {
                 const delay = calculateDelay(shipment.expectedETA, shipment.actualETA);
-                const lastSeenAgeMin = shipment.lastKnownAt ? Math.round((Date.now() - new Date(shipment.lastKnownAt).getTime()) / 60000) : null;
+                const lastSeenAgeMin = shipment.lastKnownAt && currentTime > 0 
+                  ? Math.round((currentTime - new Date(shipment.lastKnownAt).getTime()) / 60000) 
+                  : null;
                 return (
                   <Fragment key={shipment.id}>
                     <tr key={shipment.id} className="hover:bg-gray-50">
