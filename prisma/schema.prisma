@@ -13,6 +13,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  ANALYST
+  OPERATOR
+  ADMIN
+}
+
 model Shipment {
   id            String   @id @default(cuid())
   routeId       String
@@ -106,6 +112,7 @@ model User {
   agentActive     Boolean            @default(false)
   createdAt       DateTime           @default(now())
   verificationCodes VerificationCode[]
+  role            Role               @default(ANALYST)
 }
 
 model VerificationCode {

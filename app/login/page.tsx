@@ -1,26 +1,40 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
 
 type LoginMethod = "email" | "phone";
 type Step = "input" | "verify";
+type Role = "ANALYST" | "OPERATOR" | "ADMIN";
 
 export default function LoginPage() {
   const router = useRouter();
+  const search = useSearchParams();
+
   const [loginMethod, setLoginMethod] = useState<LoginMethod>("email");
   const [step, setStep] = useState<Step>("input");
-  
+
   // Form states
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
-  
+
   // UI states
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+
+  // DEV-ONLY role override
+  const [role, setRole] = useState<Role>("ANALYST");
+  const redirect = search.get("redirect") || "/dashboard";
+
+  useEffect(() => {
+    // Clear any leftover dev override for predictability on each visit (dev only)
+    if (process.env.NODE_ENV !== "production") {
+      document.cookie = `devRole=; Max-Age=0; Path=/`;
+    }
+  }, []);
 
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,16 +43,15 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const payload = loginMethod === "email" 
-        ? { email: email.trim() } 
-        : { phone: phone.trim() };
+      const payload =
+        loginMethod === "email" ? { email: email.trim() } : { phone: phone.trim() };
 
       const response = await axios.post("/api/auth/send-code", payload);
 
       if (response.data.success) {
         setMessage("Verification code sent! Check your console for the code.");
         setStep("verify");
-        
+
         // In development, show the code in an alert
         if (response.data.testCode) {
           setTimeout(() => {
@@ -59,18 +72,27 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const payload = loginMethod === "email"
-        ? { email: email.trim(), code: code.trim() }
-        : { phone: phone.trim(), code: code.trim() };
+      const payload =
+        loginMethod === "email"
+          ? { email: email.trim(), code: code.trim() }
+          : { phone: phone.trim(), code: code.trim() };
 
       const response = await axios.post("/api/auth/verify-code", payload);
 
       if (response.data.success) {
         setMessage("Login successful! Redirecting...");
+
+        // DEV-ONLY: set role override cookie for middleware to honor
+        if (process.env.NODE_ENV !== "production") {
+          // 12 hours
+          document.cookie = `devRole=${role}; Max-Age=${60 * 60 * 12}; Path=/`;
+        }
+
         setTimeout(() => {
-          router.push("/dashboard");
+          // Go to /dashboard; middleware will fan-out by role (devRole in dev, JWT in prod)
+          router.replace(redirect || "/dashboard");
           router.refresh();
-        }, 500);
+        }, 400);
       }
     } catch (err: any) {
       setError(err.response?.data?.error || "Invalid verification code");
@@ -129,8 +151,51 @@ export default function LoginPage() {
             </button>
           </div>
 
-          {/* Form Content */}
           <div className="p-8">
+            {/* DEV-ONLY Role picker */}
+            {process.env.NODE_ENV !== "production" && (
+              <div className="mb-6 p-3 rounded-md border border-amber-200 bg-amber-50">
+                <div className="text-xs font-semibold text-amber-900 mb-2">
+                  Dev-only: Choose a role to preview its dashboard
+                </div>
+                <div className="flex items-center gap-4 text-sm">
+                  <label className="inline-flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="role"
+                      value="ANALYST"
+                      checked={role === "ANALYST"}
+                      onChange={() => setRole("ANALYST")}
+                    />
+                    Analyst
+                  </label>
+                  <label className="inline-flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="role"
+                      value="OPERATOR"
+                      checked={role === "OPERATOR"}
+                      onChange={() => setRole("OPERATOR")}
+                    />
+                    Operator
+                  </label>
+                  <label className="inline-flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="role"
+                      value="ADMIN"
+                      checked={role === "ADMIN"}
+                      onChange={() => setRole("ADMIN")}
+                    />
+                    Admin
+                  </label>
+                </div>
+                <div className="mt-1 text-[11px] text-amber-800">
+                  In production this override is ignored; routing uses the JWT role.
+                </div>
+              </div>
+            )}
+
             {/* Error Message */}
             {error && (
               <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
@@ -185,9 +250,7 @@ export default function LoginPage() {
                   type="submit"
                   disabled={loading}
                   className={`w-full py-3 px-4 rounded-lg font-medium text-white transition-all ${
-                    loading
-                      ? "bg-gray-400 cursor-not-allowed"
-                      : "bg-blue-600 hover:bg-blue-700"
+                    loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
                   }`}
                 >
                   {loading ? "Sending..." : "Send Verification Code"}
@@ -241,9 +304,7 @@ export default function LoginPage() {
 
             {/* Info Box */}
             <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <h4 className="text-sm font-semibold text-blue-900 mb-2">
-                🔐 Verification Code Info
-              </h4>
+              <h4 className="text-sm font-semibold text-blue-900 mb-2">🔐 Verification Code Info</h4>
               <ul className="text-xs text-blue-800 space-y-1">
                 <li>• 6-digit code expires in 5 minutes</li>
                 <li>• Limited to 3 code requests per minute</li>
@@ -261,4 +322,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
