@@ -83,6 +83,16 @@ npm run dev
 
 ## 🛡️ Platform Features
 
+## 👥 Class Feedback (Mid-Quarter)
+
+- **RBAC rigor for agents:** Ensure roles strictly separate what agents can see/do; test for overlap/leakage and enforce on the server.
+- **Realism in data:** Use noisier, real-world routing/telemetry and schedule changes to validate anomaly detection under real conditions.
+- **Resilience under load/DoS:** Stress-test the agent path (queueing, rate limits, backpressure, circuit breakers) to degrade safely and recover.
+- **Breach playbook:** Define incident response (detect → contain → communicate → recover) and make it role-gated/auditable.
+- **Value model nuance:** Don’t rely on dollar value alone—prioritize essentials (e.g., food, critical meds) with context-aware weighting.
+- **Reduce rater fatigue:** Shift from manual ratings to backend RL and synthetic data from flagged cases to keep learning without user burnout.
+- **Integration risk:** Validate that the four key improvements work together end-to-end, not just in isolation.
+
 ### 🤖 AI-Powered Threat Detection
 - **Real-time Analysis**: `/api/ai` evaluates shipment timing and attack simulations, logs all analysis steps with `[AI]` prefix
 - **Reinforcement Learning**: Human-in-the-loop feedback system using few-shot learning; rate alert accuracy via `AlertFeedbackModal`, and the AI learns from corrections in future predictions
