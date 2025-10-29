@@ -8,6 +8,7 @@ import RecentAnalyses from "@/components/RecentAnalyses";
 import SimulateAttackButton from "@/components/SimulateAttackButton";
 import AgentStatusMonitor from "@/components/AgentStatusMonitor";
 import DelayPredictionChart from "@/components/DelayPredictionChart";
+import RoutePerformance from "@/components/RoutePerformance";
 import axios from "axios";
 
 // For demo purposes, using a static user ID
@@ -103,19 +104,8 @@ export default function Dashboard() {
           <div id="predictive" className="grid grid-cols-1 lg:grid-cols-2 gap-8 scroll-mt-20">
             <DelayPredictionChart refreshTrigger={refreshKey} />
             
-            {/* Additional Analytics Placeholder */}
-            <div className="card p-6">
-              <h3 className="text-lg font-semibold mb-4 text-gray-900 font-['Rajdhani']">
-                Route Performance
-              </h3>
-              <div className="text-center py-8">
-                <div className="text-4xl mb-2">🗺️</div>
-                <p className="text-gray-700">Route analytics coming soon</p>
-                <p className="text-sm text-gray-600 mt-1">
-                  Performance metrics by route and driver
-                </p>
-              </div>
-            </div>
+            {/* Route Performance */}
+            <RoutePerformance />
           </div>
 
           {/* Status Cards */}
