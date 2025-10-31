@@ -51,13 +51,13 @@ function LoginInner() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
-  // DEV-ONLY role override
+  // Role selection (now ALWAYS visible in UI, dev & prod)
   const [role, setRole] = useState<Role>("ANALYST");
 
   const redirect = useMemo(() => search.get("redirect") || "/dashboard", [search]);
 
   useEffect(() => {
-    // Clear any leftover dev override for predictability on each visit (dev only)
+    // Clear any leftover dev override cookie so it doesn't surprise you locally
     if (process.env.NODE_ENV !== "production") {
       try {
         document.cookie = `devRole=; Max-Age=0; Path=/`;
@@ -104,16 +104,19 @@ function LoginInner() {
     setLoading(true);
 
     try {
+      // Send the selected role to the server in ALL environments.
+      // Server can gate honoring it with ALLOW_DEMO_ROLE_SELECTOR=true.
       const payload =
         loginMethod === "email"
-          ? { email: email.trim(), code: code.trim() }
-          : { phone: phone.trim(), code: code.trim() };
+          ? { email: email.trim(), code: code.trim(), desiredRole: role }
+          : { phone: phone.trim(), code: code.trim(), desiredRole: role };
 
       const response = await axios.post("/api/auth/verify-code", payload);
 
       if (response.data?.success) {
         setMessage("Login successful! Redirecting...");
 
+        // Local dev cookie to let your middleware preview dashboards by role
         if (process.env.NODE_ENV !== "production") {
           try {
             document.cookie = `devRole=${role}; Max-Age=${60 * 60 * 12}; Path=/`;
@@ -125,7 +128,7 @@ function LoginInner() {
           router.refresh();
         }, 400);
       } else {
-        setError("Invalid verification code");
+        setError(response.data?.error || "Invalid verification code");
       }
     } catch (err: any) {
       setError(err?.response?.data?.error || "Invalid verification code");
@@ -187,49 +190,48 @@ function LoginInner() {
           </div>
 
           <div className="p-8">
-            {/* DEV-ONLY Role picker */}
-            {process.env.NODE_ENV !== "production" && (
-              <div className="mb-6 p-3 rounded-md border border-amber-200 bg-amber-50">
-                <div className="text-xs font-semibold text-amber-900 mb-2">
-                  Dev-only: Choose a role to preview its dashboard
-                </div>
-                <div className="flex items-center gap-4 text-sm">
-                  <label className="inline-flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="role"
-                      value="ANALYST"
-                      checked={role === "ANALYST"}
-                      onChange={() => setRole("ANALYST")}
-                    />
-                    Analyst
-                  </label>
-                  <label className="inline-flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="role"
-                      value="OPERATOR"
-                      checked={role === "OPERATOR"}
-                      onChange={() => setRole("OPERATOR")}
-                    />
-                    Operator
-                  </label>
-                  <label className="inline-flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="role"
-                      value="ADMIN"
-                      checked={role === "ADMIN"}
-                      onChange={() => setRole("ADMIN")}
-                    />
-                    Admin
-                  </label>
-                </div>
-                <div className="mt-1 text-[11px] text-amber-800">
-                  In production this override is ignored; routing uses the JWT role.
-                </div>
+            {/* Role picker — always visible */}
+            <div className="mb-6 p-3 rounded-md border border-blue-200 bg-blue-50">
+              <div className="text-xs font-semibold text-blue-900 mb-2">
+                Choose a role for this session
               </div>
-            )}
+              <div className="flex items-center gap-4 text-sm">
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="role"
+                    value="ANALYST"
+                    checked={role === "ANALYST"}
+                    onChange={() => setRole("ANALYST")}
+                  />
+                  Analyst
+                </label>
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="role"
+                    value="OPERATOR"
+                    checked={role === "OPERATOR"}
+                    onChange={() => setRole("OPERATOR")}
+                  />
+                  Operator
+                </label>
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="role"
+                    value="ADMIN"
+                    checked={role === "ADMIN"}
+                    onChange={() => setRole("ADMIN")}
+                  />
+                  Admin
+                </label>
+              </div>
+              <div className="mt-1 text-[11px] text-blue-800">
+                In production, the server may ignore this unless{" "}
+                <code className="px-1 bg-blue-100 rounded">ALLOW_DEMO_ROLE_SELECTOR=true</code> is set.
+              </div>
+            </div>
 
             {/* Error Message */}
             {error && (
