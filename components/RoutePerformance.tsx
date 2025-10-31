@@ -56,7 +56,6 @@ export default function RoutePerformance() {
       const shipments: Shipment[] = shipmentsRes.data.success ? shipmentsRes.data.shipments || [] : [];
       const alerts: Alert[] = alertsRes.data.success ? alertsRes.data.alerts || [] : [];
 
-      // Calculate average delay
       const delaysWithValues = shipments
         .map(s => {
           if (s.predictedDelay != null) return s.predictedDelay;
@@ -90,7 +89,6 @@ export default function RoutePerformance() {
   const handleDownloadFullReport = async () => {
     setGenerating(true);
     try {
-      // Fetch fresh data
       const [shipmentsRes, alertsRes] = await Promise.all([
         axios.get("/api/shipments").catch(() => ({ data: { success: false, shipments: [] } })),
         axios.get("/api/alerts").catch(() => ({ data: { success: false, alerts: [] } }))
@@ -99,7 +97,6 @@ export default function RoutePerformance() {
       const shipments: Shipment[] = shipmentsRes.data.success ? shipmentsRes.data.shipments || [] : [];
       const alerts: Alert[] = alertsRes.data.success ? alertsRes.data.alerts || [] : [];
 
-      // Calculate statistics
       const delaysWithValues = shipments
         .map(s => {
           if (s.predictedDelay != null) return s.predictedDelay;
@@ -114,49 +111,47 @@ export default function RoutePerformance() {
         ? Math.round(delaysWithValues.reduce((sum, d) => sum + d, 0) / delaysWithValues.length)
         : 0;
 
-      // Generate PDF
       const doc = new jsPDF();
       let yPosition = 20;
 
       // ===== PAGE 1: Executive Summary =====
       doc.setFontSize(18);
-      doc.setFont(undefined, "bold");
+      doc.setFont("helvetica", "bold");
       doc.text("Comprehensive Logistics Security Report", 105, yPosition, { align: "center" });
       yPosition += 15;
 
       doc.setFontSize(10);
-      doc.setFont(undefined, "normal");
+      doc.setFont("helvetica", "normal");
       doc.text(`Generated: ${new Date().toLocaleString()}`, 105, yPosition, { align: "center" });
       yPosition += 20;
 
       doc.setFontSize(14);
-      doc.setFont(undefined, "bold");
+      doc.setFont("helvetica", "bold");
       doc.text("Executive Summary", 10, yPosition);
       yPosition += 10;
 
       doc.setFontSize(11);
-      doc.setFont(undefined, "normal");
-      doc.setFont(undefined, "bold");
+      doc.setFont("helvetica", "bold");
       doc.text("Total Shipments:", 10, yPosition);
-      doc.setFont(undefined, "normal");
+      doc.setFont("helvetica", "normal");
       doc.text(String(shipments.length), 70, yPosition);
       yPosition += 8;
 
-      doc.setFont(undefined, "bold");
+      doc.setFont("helvetica", "bold");
       doc.text("Active Alerts:", 10, yPosition);
-      doc.setFont(undefined, "normal");
+      doc.setFont("helvetica", "normal");
       doc.text(String(alerts.length), 70, yPosition);
       yPosition += 8;
 
-      doc.setFont(undefined, "bold");
+      doc.setFont("helvetica", "bold");
       doc.text("Last Updated:", 10, yPosition);
-      doc.setFont(undefined, "normal");
+      doc.setFont("helvetica", "normal");
       doc.text(new Date().toLocaleString(), 70, yPosition);
       yPosition += 8;
 
-      doc.setFont(undefined, "bold");
+      doc.setFont("helvetica", "bold");
       doc.text("Avg Delay:", 10, yPosition);
-      doc.setFont(undefined, "normal");
+      doc.setFont("helvetica", "normal");
       doc.text(`${averageDelay} minutes`, 70, yPosition);
 
       // ===== PAGE 2: Shipments Overview =====
@@ -164,26 +159,25 @@ export default function RoutePerformance() {
       yPosition = 20;
 
       doc.setFontSize(14);
-      doc.setFont(undefined, "bold");
+      doc.setFont("helvetica", "bold");
       doc.text("Shipments Overview", 10, yPosition);
       yPosition += 10;
 
       doc.setFontSize(10);
-      doc.setFont(undefined, "normal");
+      doc.setFont("helvetica", "normal");
 
       const shipmentsToShow = shipments.slice(0, 50);
       shipmentsToShow.forEach((shipment, index) => {
-        // Paginate every 5 shipments
         if (index > 0 && index % 5 === 0 && yPosition > 250) {
           doc.addPage();
           yPosition = 20;
         }
 
-        doc.setFont(undefined, "bold");
+        doc.setFont("helvetica", "bold");
         doc.text(`Route ID: ${shipment.routeId}`, 10, yPosition);
         yPosition += 7;
 
-        doc.setFont(undefined, "normal");
+        doc.setFont("helvetica", "normal");
         const driver = shipment.driverName || "N/A";
         doc.text(`Driver: ${driver}`, 10, yPosition);
         yPosition += 6;
@@ -192,22 +186,31 @@ export default function RoutePerformance() {
         doc.text(`Status: ${status}`, 10, yPosition);
         yPosition += 6;
 
-        const delayMin = shipment.predictedDelay 
-          ? Math.round(shipment.predictedDelay)
-          : (shipment.expectedETA && shipment.actualETA
-              ? Math.round((new Date(shipment.actualETA).getTime() - new Date(shipment.expectedETA).getTime()) / (1000 * 60))
-              : "N/A");
-        doc.text(`Delay: ${delayMin}${typeof delayMin === 'number' ? ' min' : ''}`, 10, yPosition);
+        const delayMin =
+          shipment.predictedDelay != null
+            ? Math.round(shipment.predictedDelay)
+            : shipment.expectedETA && shipment.actualETA
+            ? Math.round(
+                (new Date(shipment.actualETA).getTime() - new Date(shipment.expectedETA).getTime()) /
+                  (1000 * 60)
+              )
+            : "N/A";
+
+        doc.text(
+          `Delay: ${typeof delayMin === "number" ? `${delayMin} min` : "N/A"}`,
+          10,
+          yPosition
+        );
         yPosition += 6;
 
-        const eta = shipment.expectedETA 
+        const eta = shipment.expectedETA
           ? new Date(shipment.expectedETA).toLocaleString()
           : "N/A";
         doc.text(`ETA: ${eta}`, 10, yPosition);
         yPosition += 6;
 
-        const cargoType = shipment.cargoName 
-          ? `${shipment.cargoName}${shipment.cargoQuantity ? ` x${shipment.cargoQuantity}` : ''}`
+        const cargoType = shipment.cargoName
+          ? `${shipment.cargoName}${shipment.cargoQuantity ? ` x${shipment.cargoQuantity}` : ""}`
           : "N/A";
         doc.text(`Cargo Type: ${cargoType}`, 10, yPosition);
         yPosition += 10;
@@ -224,19 +227,33 @@ export default function RoutePerformance() {
       yPosition = 20;
 
       doc.setFontSize(14);
-      doc.setFont(undefined, "bold");
+      doc.setFont("helvetica", "bold");
       doc.text("Predictive Analytics", 10, yPosition);
       yPosition += 15;
 
       doc.setFontSize(11);
-      doc.setFont(undefined, "normal");
+      doc.setFont("helvetica", "normal");
 
       const shipmentsWithPrediction = shipments.filter(s => s.predictedDelay != null);
-      const avgPredictedDelay = shipmentsWithPrediction.length > 0
-        ? Math.round(shipmentsWithPrediction.reduce((sum, s) => sum + (s.predictedDelay || 0), 0) / shipmentsWithPrediction.length)
-        : 0;
+      const avgPredictedDelay =
+        shipmentsWithPrediction.length > 0
+          ? Math.round(
+              shipmentsWithPrediction.reduce((sum, s) => sum + (s.predictedDelay || 0), 0) /
+                shipmentsWithPrediction.length
+            )
+          : 0;
 
-      doc.text(`Average predicted delay: ${avgPredictedDelay} min | Confidence: ${shipmentsWithPrediction.length >= 10 ? "High" : shipmentsWithPrediction.length >= 3 ? "Medium" : "Low"}`, 10, yPosition);
+      doc.text(
+        `Average predicted delay: ${avgPredictedDelay} min | Confidence: ${
+          shipmentsWithPrediction.length >= 10
+            ? "High"
+            : shipmentsWithPrediction.length >= 3
+            ? "Medium"
+            : "Low"
+        }`,
+        10,
+        yPosition
+      );
       yPosition += 10;
 
       doc.text("Predicted Delays and Confidence Levels", 10, yPosition);
@@ -256,49 +273,45 @@ export default function RoutePerformance() {
         doc.text("No predictive data available at this time.", 15, yPosition);
       }
 
-      // ===== NEXT PAGE: Security Alerts Summary (if any) =====
+      // ===== NEXT PAGE: Security Alerts Summary =====
       if (alerts.length > 0) {
         doc.addPage();
         yPosition = 20;
 
         doc.setFontSize(14);
-        doc.setFont(undefined, "bold");
+        doc.setFont("helvetica", "bold");
         doc.text("Security Alerts Summary", 10, yPosition);
         yPosition += 10;
 
         doc.setFontSize(10);
-        alerts.forEach((alert) => {
-          // Check if we need a new page
+        alerts.forEach(alert => {
           if (yPosition > 270) {
             doc.addPage();
             yPosition = 20;
           }
 
-          const riskScore = alert.severity?.toLowerCase() === 'high' ? 75 : alert.severity?.toLowerCase() === 'medium' ? 50 : 25;
+          const sev = alert.severity?.toLowerCase();
+          const riskScore = sev === "high" ? 75 : sev === "medium" ? 50 : 25;
           const isHighRisk = riskScore > 70;
 
-          if (isHighRisk) {
-            doc.setTextColor(255, 0, 0); // Red for high risk
-          }
+          if (isHighRisk) doc.setTextColor(255, 0, 0);
 
-          doc.setFont(undefined, "bold");
+          doc.setFont("helvetica", "bold");
           doc.text(`Alert ID: ${alert.id}`, 10, yPosition);
           yPosition += 7;
 
-          doc.setFont(undefined, "normal");
+          doc.setFont("helvetica", "normal");
           doc.text(`Risk Score: ${riskScore} (${alert.severity?.toUpperCase() || "N/A"})`, 10, yPosition);
           yPosition += 6;
 
           doc.text(`Threat Type: ${alert.type || "N/A"}`, 10, yPosition);
           yPosition += 6;
 
-          const descLines = doc.splitTextToSize(alert.description || "N/A", 190);
+          const descLines = doc.splitTextToSize(alert.description || "N/A", 190) as string[];
           doc.text(descLines, 10, yPosition);
           yPosition += descLines.length * 5 + 5;
 
-          if (isHighRisk) {
-            doc.setTextColor(0, 0, 0); // Reset to black
-          }
+          if (isHighRisk) doc.setTextColor(0, 0, 0);
 
           doc.setDrawColor(200, 200, 200);
           doc.line(10, yPosition, 200, yPosition);
@@ -311,12 +324,12 @@ export default function RoutePerformance() {
       yPosition = 20;
 
       doc.setFontSize(14);
-      doc.setFont(undefined, "bold");
+      doc.setFont("helvetica", "bold");
       doc.text("Recommendations & System Notes", 10, yPosition);
       yPosition += 15;
 
       doc.setFontSize(11);
-      doc.setFont(undefined, "normal");
+      doc.setFont("helvetica", "normal");
 
       const notes = [
         "Maintaining continuous AI monitoring enhances early anomaly detection and system resilience.",
@@ -334,18 +347,16 @@ export default function RoutePerformance() {
         "Regular system audits and security assessments are recommended for maintaining optimal performance."
       ];
 
-      notes.forEach((note) => {
+      notes.forEach(note => {
         if (yPosition > 270) {
           doc.addPage();
           yPosition = 20;
         }
-
-        const noteLines = doc.splitTextToSize(note, 190);
+        const noteLines = doc.splitTextToSize(note, 190) as string[];
         doc.text(noteLines, 10, yPosition);
         yPosition += noteLines.length * 6 + 5;
       });
 
-      // Save PDF
       doc.save("Comprehensive_Logistics_Report.pdf");
     } catch (err) {
       console.error("Failed to generate comprehensive report:", err);
@@ -396,7 +407,6 @@ export default function RoutePerformance() {
         📊 Route Performance Overview
       </h3>
 
-      {/* Summary Section */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
           <p className="text-sm text-gray-600">Total Shipments</p>
@@ -418,7 +428,6 @@ export default function RoutePerformance() {
         </div>
       </div>
 
-      {/* Recent Shipments Table */}
       <div className="mb-6">
         <h4 className="text-sm font-semibold text-gray-700 mb-3">Recent Shipment Performance</h4>
         <div className="overflow-x-auto">
@@ -442,15 +451,16 @@ export default function RoutePerformance() {
             <tbody className="bg-white divide-y divide-gray-200">
               {recentShipments.length > 0 ? (
                 recentShipments.map((shipment) => {
-                  const delayMin = shipment.predictedDelay
-                    ? Math.round(shipment.predictedDelay)
-                    : shipment.expectedETA && shipment.actualETA
-                    ? Math.round(
-                        (new Date(shipment.actualETA).getTime() - new Date(shipment.expectedETA).getTime()) /
-                          (1000 * 60)
-                      )
-                    : "N/A";
-                  
+                  const delayMin =
+                    shipment.predictedDelay != null
+                      ? Math.round(shipment.predictedDelay)
+                      : shipment.expectedETA && shipment.actualETA
+                      ? Math.round(
+                          (new Date(shipment.actualETA).getTime() - new Date(shipment.expectedETA).getTime()) /
+                            (1000 * 60)
+                        )
+                      : "N/A";
+
                   return (
                     <tr key={shipment.id} className="hover:bg-gray-50">
                       <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
@@ -496,7 +506,6 @@ export default function RoutePerformance() {
         </div>
       </div>
 
-      {/* Download Button */}
       <div className="flex justify-center pt-4 border-t border-gray-200">
         <button
           onClick={handleDownloadFullReport}
@@ -507,7 +516,6 @@ export default function RoutePerformance() {
         </button>
       </div>
 
-      {/* Loading overlay */}
       {generating && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
@@ -521,4 +529,3 @@ export default function RoutePerformance() {
     </div>
   );
 }
-
