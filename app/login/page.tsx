@@ -70,26 +70,28 @@ function LoginInner() {
     setError("");
     setMessage("");
     setLoading(true);
-
+  
     try {
       const payload =
         loginMethod === "email" ? { email: email.trim() } : { phone: phone.trim() };
-
+  
       const response = await axios.post("/api/auth/send-code", payload);
-
+  
       if (response.data?.success) {
-        setMessage("Verification code sent! Check your console for the code.");
+        setMessage("Verification code sent!");
         setStep("verify");
-
-        if (response.data.testCode) {
-          setTimeout(() => {
-            try {
-              alert(`Development Mode - Your verification code is: ${response.data.testCode}`);
-            } catch {}
-          }, 300);
+  
+        // ✅ Show code if API returned it (dev OR prod with ALLOW_TEST_CODES=true)
+        if (response.data?.testCode) {
+          alert(`Your verification code is: ${response.data.testCode}`);
+        } else {
+          // Fallback: tell yourself where to look if code isn't returned
+          console.log(
+            "Verification code not returned by API. If running on Render, enable ALLOW_TEST_CODES=true or check server logs."
+          );
         }
       } else {
-        setError("Failed to send verification code");
+        setError(response.data?.error || "Failed to send verification code");
       }
     } catch (err: any) {
       setError(err?.response?.data?.error || "Failed to send verification code");
@@ -97,6 +99,7 @@ function LoginInner() {
       setLoading(false);
     }
   };
+  
 
   const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
