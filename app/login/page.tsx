@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
 
@@ -9,6 +9,32 @@ type Step = "input" | "verify";
 type Role = "ANALYST" | "OPERATOR" | "ADMIN";
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginFallback />}>
+      <LoginInner />
+    </Suspense>
+  );
+}
+
+function LoginFallback() {
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="max-w-md w-full">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-extrabold text-gray-900 mb-2">
+            Logistics Defense <span className="text-blue-600">AI</span>
+          </h1>
+          <p className="text-gray-600">Loading login…</p>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+          <div className="h-40 bg-gray-100 animate-pulse rounded" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LoginInner() {
   const router = useRouter();
   const search = useSearchParams();
 
@@ -27,12 +53,15 @@ export default function LoginPage() {
 
   // DEV-ONLY role override
   const [role, setRole] = useState<Role>("ANALYST");
-  const redirect = search.get("redirect") || "/dashboard";
+
+  const redirect = useMemo(() => search.get("redirect") || "/dashboard", [search]);
 
   useEffect(() => {
     // Clear any leftover dev override for predictability on each visit (dev only)
     if (process.env.NODE_ENV !== "production") {
-      document.cookie = `devRole=; Max-Age=0; Path=/`;
+      try {
+        document.cookie = `devRole=; Max-Age=0; Path=/`;
+      } catch {}
     }
   }, []);
 
@@ -48,19 +77,22 @@ export default function LoginPage() {
 
       const response = await axios.post("/api/auth/send-code", payload);
 
-      if (response.data.success) {
+      if (response.data?.success) {
         setMessage("Verification code sent! Check your console for the code.");
         setStep("verify");
 
-        // In development, show the code in an alert
         if (response.data.testCode) {
           setTimeout(() => {
-            alert(`Development Mode - Your verification code is: ${response.data.testCode}`);
-          }, 500);
+            try {
+              alert(`Development Mode - Your verification code is: ${response.data.testCode}`);
+            } catch {}
+          }, 300);
         }
+      } else {
+        setError("Failed to send verification code");
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to send verification code");
+      setError(err?.response?.data?.error || "Failed to send verification code");
     } finally {
       setLoading(false);
     }
@@ -79,23 +111,24 @@ export default function LoginPage() {
 
       const response = await axios.post("/api/auth/verify-code", payload);
 
-      if (response.data.success) {
+      if (response.data?.success) {
         setMessage("Login successful! Redirecting...");
 
-        // DEV-ONLY: set role override cookie for middleware to honor
         if (process.env.NODE_ENV !== "production") {
-          // 12 hours
-          document.cookie = `devRole=${role}; Max-Age=${60 * 60 * 12}; Path=/`;
+          try {
+            document.cookie = `devRole=${role}; Max-Age=${60 * 60 * 12}; Path=/`;
+          } catch {}
         }
 
         setTimeout(() => {
-          // Go to /dashboard; middleware will fan-out by role (devRole in dev, JWT in prod)
           router.replace(redirect || "/dashboard");
           router.refresh();
         }, 400);
+      } else {
+        setError("Invalid verification code");
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || "Invalid verification code");
+      setError(err?.response?.data?.error || "Invalid verification code");
     } finally {
       setLoading(false);
     }
@@ -133,6 +166,7 @@ export default function LoginPage() {
                   ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50"
                   : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
               }`}
+              type="button"
             >
               Email Login
             </button>
@@ -146,6 +180,7 @@ export default function LoginPage() {
                   ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50"
                   : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
               }`}
+              type="button"
             >
               Phone Login
             </button>
