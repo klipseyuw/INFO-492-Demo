@@ -2,11 +2,17 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import axios from "axios";
 import { logActivity, updateActivity } from "@/lib/agentActivity";
+import { getSessionFromRequest, requireRole } from "@/lib/auth";
 
 // Fallback deliberately disabled: threats must be determined by the external AI agent only.
 
 export async function POST(req: Request) {
   try {
+    const session = await getSessionFromRequest(req);
+    const guard = requireRole(session, ["ANALYST", "ADMIN"]);
+    if (!guard.ok) {
+      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
+    }
     const {
       routeId,
       expectedETA,

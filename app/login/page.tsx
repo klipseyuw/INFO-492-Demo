@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
 
-type LoginMethod = "email" | "phone";
+type LoginMethod = "email" | "phone" | "password";
 type Step = "input" | "verify";
 type Role = "ANALYST" | "OPERATOR" | "ADMIN";
 
@@ -38,13 +38,14 @@ function LoginInner() {
   const router = useRouter();
   const search = useSearchParams();
 
-  const [loginMethod, setLoginMethod] = useState<LoginMethod>("email");
+  const [loginMethod, setLoginMethod] = useState<LoginMethod>("password");
   const [step, setStep] = useState<Step>("input");
 
   // Form states
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
 
   // UI states
   const [loading, setLoading] = useState(false);
@@ -100,6 +101,39 @@ function LoginInner() {
     }
   };
   
+  const handlePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setMessage("");
+    setLoading(true);
+    try {
+      const response = await axios.post("/api/auth/login", {
+        email: email.trim(),
+        password: password,
+      });
+      if (response.data?.success) {
+        const roleFromServer = response.data?.user?.role as Role | undefined;
+        // Optional dev cookie to preview dashboards
+        if (process.env.NODE_ENV !== "production" && roleFromServer) {
+          try {
+            document.cookie = `devRole=${roleFromServer}; Max-Age=${60 * 60 * 12}; Path=/`;
+          } catch {}
+        }
+        setMessage("Login successful! Redirecting...");
+        setTimeout(() => {
+          router.replace(redirect || "/dashboard");
+          router.refresh();
+        }, 300);
+      } else {
+        setError(response.data?.error || "Invalid credentials");
+      }
+    } catch (err: any) {
+      setError(err?.response?.data?.error || "Invalid credentials");
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -190,10 +224,28 @@ function LoginInner() {
             >
               Phone Login
             </button>
+            <button
+              onClick={() => {
+                setLoginMethod("password");
+                setStep("input");
+                setCode("");
+                setError("");
+                setMessage("");
+              }}
+              className={`flex-1 px-6 py-4 text-sm font-medium transition-all ${
+                loginMethod === "password"
+                  ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+              }`}
+              type="button"
+            >
+              Demo Accounts
+            </button>
           </div>
 
           <div className="p-8">
-            {/* Role picker — always visible */}
+            {/* Role picker — visible for code login only (server can override) */}
+            {loginMethod !== "password" && (
             <div className="mb-6 p-3 rounded-md border border-blue-200 bg-blue-50">
               <div className="text-xs font-semibold text-blue-900 mb-2">
                 Choose a role for this session
@@ -235,6 +287,7 @@ function LoginInner() {
                 <code className="px-1 bg-blue-100 rounded">ALLOW_DEMO_ROLE_SELECTOR=true</code> is set.
               </div>
             </div>
+            )}
 
             {/* Error Message */}
             {error && (
@@ -250,8 +303,54 @@ function LoginInner() {
               </div>
             )}
 
-            {/* Step 1: Input Email/Phone */}
-            {step === "input" && (
+            {/* Password-based Demo Account Login */}
+            {loginMethod === "password" && (
+              <form onSubmit={handlePasswordLogin} className="space-y-4">
+                <div>
+                  <label htmlFor="demo-email" className="block text-sm font-medium text-gray-700 mb-2">
+                    Email
+                  </label>
+                  <input
+                    id="demo-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    placeholder="admin@example.com"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-400"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="demo-password" className="block text-sm font-medium text-gray-700 mb-2">
+                    Password
+                  </label>
+                  <input
+                    id="demo-password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    placeholder="••••••••"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-400"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className={`w-full py-3 px-4 rounded-lg font-medium text-white transition-all ${
+                    loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+                  }`}
+                >
+                  {loading ? "Signing in..." : "Sign in"}
+                </button>
+                <div className="text-xs text-gray-500 text-center">
+                  Use the demo credentials provided for this environment.
+                </div>
+              </form>
+            )}
+
+            {/* Step 1: Input Email/Phone for code login */}
+            {loginMethod !== "password" && step === "input" && (
               <form onSubmit={handleSendCode} className="space-y-4">
                 {loginMethod === "email" ? (
                   <div>
@@ -299,7 +398,7 @@ function LoginInner() {
             )}
 
             {/* Step 2: Verify Code */}
-            {step === "verify" && (
+            {loginMethod !== "password" && step === "verify" && (
               <form onSubmit={handleVerifyCode} className="space-y-4">
                 <div>
                   <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-2">

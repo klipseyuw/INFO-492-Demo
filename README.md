@@ -272,6 +272,25 @@ Follow this checklist to ensure successful setup:
 
 ## 🧑‍💻 Login & Logout Guide (for All Users)
 
+### 🔐 Demo Accounts (RBAC) — Email + Password
+
+For class demos requiring strict role separation (RBAC), you can enable simple email/password demo accounts. Set these environment variables and use the "Demo Accounts" tab on the login page:
+
+```env
+# Optional demo users (mutually exclusive roles)
+DEMO_ADMIN_EMAIL=admin@example.com
+DEMO_ADMIN_PASSWORD=adminpass
+DEMO_ANALYST_EMAIL=analyst@example.com
+DEMO_ANALYST_PASSWORD=analystpass
+DEMO_OPERATOR_EMAIL=operator@example.com
+DEMO_OPERATOR_PASSWORD=operatorpass
+```
+
+Notes:
+- Each demo account is permanently mapped to its role (ADMIN, ANALYST, OPERATOR). The server issues a JWT containing this role.
+- Server-side RBAC is enforced on protected APIs; page routing enforces role-specific dashboards.
+- The passwordless flow below still works in parallel; choose whichever is needed for your demo.
+
 ### 🔐 Login
 
 The Logistics Defense AI Platform uses a **passwordless authentication system**, meaning users can log in securely using their **email** or **phone number** — no password required.
@@ -359,6 +378,13 @@ Ensure your `.env` file contains:
 DATABASE_URL="file:./prisma/dev.db"
 NEXTAUTH_SECRET="your-secure-random-secret-key"
 OPENROUTER_API_KEY="your-openrouter-api-key"
+# Optional: demo RBAC login accounts
+DEMO_ADMIN_EMAIL="admin@example.com"
+DEMO_ADMIN_PASSWORD="adminpass"
+DEMO_ANALYST_EMAIL="analyst@example.com"
+DEMO_ANALYST_PASSWORD="analystpass"
+DEMO_OPERATOR_EMAIL="operator@example.com"
+DEMO_OPERATOR_PASSWORD="operatorpass"
 ```
 
 Generate a secure `NEXTAUTH_SECRET`:

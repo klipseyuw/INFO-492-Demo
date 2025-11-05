@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getSessionFromRequest, requireRole } from "@/lib/auth";
 
 interface ShipmentData {
   id: string;
@@ -55,6 +56,11 @@ function calculateDelayMinutes(expected: Date, actual: Date): number {
 
 export async function GET(req: Request) {
   try {
+    const session = await getSessionFromRequest(req);
+    const guard = requireRole(session, ["ANALYST", "ADMIN"]);
+    if (!guard.ok) {
+      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
+    }
     const { searchParams } = new URL(req.url);
     const routeId = searchParams.get('routeId');
     const threshold = parseFloat(searchParams.get('threshold') || '30'); // Default 30 minutes
@@ -173,6 +179,11 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const session = await getSessionFromRequest(req);
+    const guard = requireRole(session, ["ANALYST", "ADMIN"]);
+    if (!guard.ok) {
+      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
+    }
     const { routeId, threshold = 30 } = await req.json();
 
     // Trigger prediction for specific route

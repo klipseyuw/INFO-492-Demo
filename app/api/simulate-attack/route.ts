@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import axios from "axios";
 import { logActivity } from "@/lib/agentActivity";
+import { getSessionFromRequest, requireRole } from "@/lib/auth";
 
 // Simulation scenarios - mix of attacks and normal operations
 const SIMULATION_SCENARIOS = [
@@ -74,6 +75,11 @@ const SIMULATION_SCENARIOS = [
 
 export async function POST(req: Request) {
   try {
+    const session = await getSessionFromRequest(req);
+    const guard = requireRole(session, ["ADMIN"]);
+    if (!guard.ok) {
+      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
+    }
     // Parse JSON safely to avoid hard failures on malformed bodies
     const raw = await req.text();
     let userId: string | undefined;
