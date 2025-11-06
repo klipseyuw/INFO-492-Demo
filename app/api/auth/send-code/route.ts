@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+type Role = 'ANALYST' | 'OPERATOR' | 'ADMIN';
+
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 function checkRateLimit(ip: string): boolean {
@@ -17,17 +19,37 @@ function checkRateLimit(ip: string): boolean {
 }
 
 const normEmail = (s?: string) => (s ?? '').trim().toLowerCase();
-const normPhone = (s?: string) => (s ?? '').replace(/\D/g, '');
+
+function getEnvDemoAccounts() {
+  const entries = [
+    {
+      email: process.env.DEMO_ADMIN_EMAIL,
+      password: process.env.DEMO_ADMIN_PASSWORD,
+      role: 'ADMIN' as Role,
+    },
+    {
+      email: process.env.DEMO_ANALYST_EMAIL,
+      password: process.env.DEMO_ANALYST_PASSWORD,
+      role: 'ANALYST' as Role,
+    },
+    {
+      email: process.env.DEMO_OPERATOR_EMAIL,
+      password: process.env.DEMO_OPERATOR_PASSWORD,
+      role: 'OPERATOR' as Role,
+    },
+  ];
+  return entries.filter((e) => e.email && e.password) as Array<{ email: string; password: string; role: Role }>;
+}
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const email = normEmail(body.email);
-    const phone = normPhone(body.phone);
+    const password = body.password;
 
-    if (!email && !phone) {
+    if (!email || !password) {
       return NextResponse.json(
-        { success: false, error: 'Email or phone number is required' },
+        { success: false, error: 'Email and password are required' },
         { status: 400 }
       );
     }
@@ -43,43 +65,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (email) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
-      if (!emailRegex.test(email)) {
-        return NextResponse.json(
-          { success: false, error: 'Invalid email format' },
-          { status: 400 }
-        );
-      }
-    }
-    if (phone) {
-      if (phone.length < 10 || phone.length > 15) {
-        return NextResponse.json(
-          { success: false, error: 'Invalid phone format (10–15 digits)' },
-          { status: 400 }
-        );
-      }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid email format' },
+        { status: 400 }
+      );
     }
 
-    // Find or create user
+    // Validate credentials against demo accounts
+    const accounts = getEnvDemoAccounts();
+    const match = accounts.find(
+      (a) => a.email.toLowerCase() === email && a.password === password
+    );
+
+    if (!match) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid email or password' },
+        { status: 401 }
+      );
+    }
+
+    // Find or create user with the matched role
     let user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          email ? { email } : undefined,
-          phone ? { phone } : undefined,
-        ].filter(Boolean) as any,
-      },
-      select: { id: true, email: true, phone: true },
+      where: { email },
+      select: { id: true, email: true, role: true },
     });
 
     if (!user) {
       user = await prisma.user.create({
         data: {
-          email: email || null,
-          phone: phone || null,
+          email,
+          role: match.role,
           agentActive: false,
         },
-        select: { id: true, email: true, phone: true },
+        select: { id: true, email: true, role: true },
+      });
+    } else if (user.role !== match.role) {
+      // Update role if it changed in env
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { role: match.role },
+        select: { id: true, email: true, role: true },
       });
     }
 
@@ -92,7 +119,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Always log to server logs (visible in Render logs)
-    console.log(`🔐 Code for ${user.email || user.phone} -> ${code} (expires ${expiresAt.toISOString()})`);
+    console.log(`🔐 Code for ${user.email} (${match.role}) -> ${code} (expires ${expiresAt.toISOString()})`);
 
     // Allow returning the test code in PROD when explicitly enabled
     const allowTestCodes = process.env.ALLOW_TEST_CODES === 'true';
@@ -101,7 +128,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Verification code sent successfully',
       testCode: allowTestCodes ? code : undefined,
-      destination: user.email || user.phone || 'unknown',
+      destination: user.email || 'unknown',
       expiresAt: expiresAt.toISOString(),
     });
   } catch (err) {

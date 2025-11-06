@@ -6,40 +6,29 @@ type Role = "ANALYST" | "OPERATOR" | "ADMIN";
 
 const normEmail = (s: unknown) =>
   typeof s === "string" ? s.trim().toLowerCase() : "";
-const normPhone = (s: unknown) =>
-  typeof s === "string" ? s.replace(/\D/g, "") : "";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
       email: rawEmail,
-      phone: rawPhone,
       code,
-      desiredRole,
-    }: { email?: string; phone?: string; code?: string; desiredRole?: Role } = body || {};
+    }: { email?: string; code?: string } = body || {};
 
     const email = normEmail(rawEmail);
-    const phone = normPhone(rawPhone);
 
-    if (!code || (!email && !phone)) {
+    if (!code || !email) {
       return NextResponse.json(
-        { success: false, error: "Email/phone and 6-digit code required" },
+        { success: false, error: "Email and 6-digit code required" },
         { status: 400 }
       );
     }
 
-    // Build a clean OR filter (no undefined entries)
-    const ors: Array<any> = [];
-    if (email) ors.push({ email });
-    if (phone) ors.push({ phone });
-
     const user = await prisma.user.findFirst({
-      where: { OR: ors },
+      where: { email },
       select: {
         id: true,
         email: true,
-        phone: true,
         name: true,
         agentActive: true,
         role: true,
@@ -76,22 +65,8 @@ export async function POST(req: NextRequest) {
     // consume the code
     await prisma.verificationCode.delete({ where: { id: match.id } });
 
-    // Optional: honor client-selected role ONLY when explicitly allowed in env.
-    const allowedRoles: Role[] = ["ANALYST", "OPERATOR", "ADMIN"];
-    let effectiveRole: Role = user.role as Role;
-
-    if (
-      process.env.ALLOW_DEMO_ROLE_SELECTOR === "true" &&
-      desiredRole &&
-      allowedRoles.includes(desiredRole) &&
-      desiredRole !== user.role
-    ) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { role: desiredRole },
-      });
-      effectiveRole = desiredRole;
-    }
+    // Use the role already set during send-code (credentials validation)
+    const effectiveRole: Role = user.role as Role;
 
     // issue JWT with effectiveRole
     const secret = new TextEncoder().encode(
@@ -101,7 +76,6 @@ export async function POST(req: NextRequest) {
     const token = await new SignJWT({
       sub: user.id,
       email: user.email,
-      phone: user.phone,
       role: effectiveRole,
     })
       .setProtectedHeader({ alg: "HS256" })
@@ -114,7 +88,6 @@ export async function POST(req: NextRequest) {
       user: {
         id: user.id,
         email: user.email,
-        phone: user.phone,
         role: effectiveRole,
         agentActive: user.agentActive,
       },
