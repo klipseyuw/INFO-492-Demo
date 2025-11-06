@@ -5,7 +5,7 @@ import { getSessionFromRequest, requireRole } from "@/lib/auth";
 export async function GET(req: Request) {
   try {
     const session = await getSessionFromRequest(req);
-    const guard = requireRole(session, ["OPERATOR", "ADMIN"]);
+  const guard = requireRole(session, ["OPERATOR", "ANALYST", "ADMIN"]);
     if (!guard.ok) {
       return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
     }

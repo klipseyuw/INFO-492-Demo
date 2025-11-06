@@ -137,3 +137,17 @@ model AgentActivity {
   duration        Int?     // milliseconds
   createdAt       DateTime @default(now())
 }
+
+// Aggregated risk statistics by region (city/tile)
+model RegionalRiskProfile {
+  id             String   @id @default(cuid())
+  regionKey      String   @unique
+  totalAnalyses  Int      @default(0)
+  highCount      Int      @default(0)
+  mediumCount    Int      @default(0)
+  lowCount       Int      @default(0)
+  avgRisk        Float    @default(0)
+  lastRiskScore  Int      @default(0)
+  lastUpdated    DateTime @updatedAt
+  createdAt      DateTime @default(now())
+}

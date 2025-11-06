@@ -10,6 +10,8 @@ import SimulateAttackButton from "@/components/SimulateAttackButton";
 import AgentStatusMonitor from "@/components/AgentStatusMonitor";
 import DelayPredictionChart from "@/components/DelayPredictionChart";
 import RoutePerformance from "@/components/RoutePerformance";
+import ShipmentMap from "@/components/ShipmentMap";
+import RiskyRegions from "@/components/RiskyRegions";
 import axios from "axios";
 
 // For demo purposes, using a static user ID
@@ -149,6 +151,16 @@ export default function Dashboard() {
               <div id="analyses" className="scroll-mt-20">
                 <RecentAnalyses refreshTrigger={refreshKey} />
               </div>
+            </div>
+          </div>
+
+          {/* Live Map & Regional Risk */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+              <ShipmentMap refreshTrigger={refreshKey} />
+            </div>
+            <div>
+              <RiskyRegions />
             </div>
           </div>
 
