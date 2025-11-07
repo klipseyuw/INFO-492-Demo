@@ -8,11 +8,11 @@ A cutting-edge cybersecurity defense platform for warehouse logistics operations
 
 - **Frontend**: Next.js 15 (App Router) + TypeScript + TailwindCSS
 - **Backend**: Next.js serverless API routes (`app/api/*`)
-- **Database**: SQLite for dev (see `prisma/schema.prisma`) — can swap to Postgres via `DATABASE_URL` in prod
+- **Database**: PostgreSQL (production) / SQLite (development) via Prisma
 - **ORM**: Prisma Client
 - **AI Engine**: OpenRouter API (model: `z-ai/glm-4.5-air:free`) with robust local fallback simulation
 - **Runtime**: Node.js 18+ with Turbopack for fast development
-- **Deployment**: Vercel (recommended) / Docker compatible
+- **Deployment**: Render.com (recommended) / Vercel / Docker compatible
 
 ## 📋 Prerequisites
 
@@ -548,6 +548,44 @@ npm run dev
 ### Deployment Platforms
 - [Vercel Deployment Guide](https://vercel.com/docs) - Serverless hosting
 - [Neon Database](https://neon.tech/docs) - Serverless PostgreSQL
+- [Render.com Guide](./RENDER_DEPLOYMENT.md) - **Full production deployment with PostgreSQL**
+
+## 🌐 Production Deployment
+
+### Deploy to Render.com (Recommended)
+
+This project is configured for one-click deployment to Render.com with PostgreSQL database:
+
+1. **Push to GitHub**: Ensure your code is in a GitHub repository
+2. **Create Blueprint**: In Render dashboard, create a new Blueprint
+3. **Configure Environment**: Add your `OPENROUTER_API_KEY`
+4. **Deploy**: Render automatically builds, migrates, and starts your app
+
+📖 **See [RENDER_DEPLOYMENT.md](./RENDER_DEPLOYMENT.md) for complete step-by-step instructions**
+
+### Key Features for Production
+- ✅ PostgreSQL database (replaces SQLite)
+- ✅ Automatic migrations on deploy
+- ✅ Secure environment variable management
+- ✅ Health check endpoint (`/api/health`)
+- ✅ Simulated attacks work via API
+- ✅ Agent AI analysis fully functional
+
+### Local Development vs Production
+
+**Development (SQLite)**:
+```bash
+DATABASE_URL="file:./prisma/dev.db"
+npm run dev
+```
+
+**Production (PostgreSQL on Render)**:
+```bash
+DATABASE_URL="postgresql://..." # Auto-configured by Render
+npm start
+```
+
+The schema automatically supports both databases with minimal changes.
 
 ---
 
