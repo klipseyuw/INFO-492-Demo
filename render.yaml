@@ -5,7 +5,8 @@ services:
     env: node
     region: oregon
     plan: free
-    buildCommand: bash scripts/render-build.sh
+    buildCommand: cp prisma/schema.production.prisma prisma/schema.prisma && npm install && npx prisma generate && npm run build
+    preDeployCommand: npx prisma migrate deploy
     startCommand: npm start
     envVars:
       - key: NODE_ENV
