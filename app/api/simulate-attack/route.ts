@@ -210,9 +210,17 @@ export async function POST(req: Request) {
         // Extract auth token from the incoming request to forward it
         const cookieHeader = req.headers.get('cookie') || '';
         
+        // Construct API URL dynamically from request
+        const host = req.headers.get('host') || 'localhost:3000';
+        const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+        const apiUrl = `${protocol}://${host}/api/ai`;
+        
+        console.log('[SIMULATE-ATTACK] Calling AI endpoint:', apiUrl);
+        console.log('[SIMULATE-ATTACK] Agent is active:', user.agentActive);
+        
         // Call the defense agent to analyze this new shipment
         const defenseResponse = await axios.post(
-          `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/ai`,
+          apiUrl,
           {
             routeId,
             expectedETA: expectedETA.toISOString(),
@@ -241,13 +249,28 @@ export async function POST(req: Request) {
           }
         );
         
+        console.log('[SIMULATE-ATTACK] AI analysis completed:', defenseResponse.data);
+        console.log('[SIMULATE-ATTACK] AI analysis completed:', defenseResponse.data);
         defenseAnalysis = defenseResponse.data;
       } catch (error: any) {
         const status = error?.response?.status;
         const data = error?.response?.data;
-        console.error("Defense agent analysis failed:", error);
-        defenseAnalysis = { message: "Defense agent failed to analyze shipment", status, details: data };
+        console.error("[SIMULATE-ATTACK] Defense agent analysis failed:", {
+          status,
+          data,
+          message: error.message,
+          agentActive: user.agentActive
+        });
+        defenseAnalysis = { 
+          success: false,
+          message: "Defense agent failed to analyze shipment", 
+          status, 
+          details: data,
+          error: error.message
+        };
       }
+    } else {
+      console.log('[SIMULATE-ATTACK] Agent is NOT active, skipping analysis');
     }
 
     return NextResponse.json({
