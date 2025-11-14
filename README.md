@@ -222,6 +222,136 @@ The AI agent learns from human feedback using **few-shot learning** (no custom m
 - Focus on correcting high-severity alerts first
 - Review learning examples in database via Prisma Studio
 
+# 📊 AI Evaluation Metrics
+
+To ensure transparency, reliability, and operational trust, the Logistics Defense AI Platform includes a dedicated **AI Evaluation System**.  
+
+These metrics measure how well the defense agent predicts delays, triggers alerts, avoids false alarms, and maintains operational stability across routes.
+
+All metrics are generated automatically using **real shipment timelines**, **predicted vs actual delays**, and **alert logs**.
+
+---
+
+## 🧠 Key Performance Indicators
+
+### **1. Delay Prediction MAE (Mean Absolute Error)**  
+
+Measures how far predicted delays deviate from actual delays.  
+
+Data sources: `predictedDelay`, `expectedETA`, `actualETA`
+
+```
+
+actualDelay = actualETA - expectedETA
+
+MAE = avg(|predictedDelay − actualDelay|)
+
+```
+
+---
+
+### **2. Overtrigger Rate (False Positive Operational Rate)**  
+
+AI predicts major delays that never occur.  
+
+Data: `predictedDelay`, `actualDelay`
+
+```
+
+predictedDelay > 30 AND actualDelay < 10
+
+```
+
+---
+
+### **3. Undertrigger Rate (False Negative Operational Rate)**  
+
+AI fails to detect real severe delays.
+
+```
+
+predictedDelay < 15 AND actualDelay > 30
+
+```
+
+---
+
+### **4. Alert Hit Rate (True Positive Alignment)**  
+
+Whether alerts correspond to meaningful operational issues.
+
+```
+
+(severity = high OR medium) AND actualDelay > 20
+
+```
+
+---
+
+### **5. Route Stability Score (Operational Consistency Index)**  
+
+MAD-based score:
+
+```
+
+MAD = median(|delay_i − median(delay)|)
+
+RouteStabilityScore = max(0, 100 − (MAD / 20) × 100)
+
+```
+
+---
+
+### **6. System Confidence Score (Overall Reliability Index)**  
+
+Weighted composite:
+
+```
+
+SystemConfidenceScore =
+
+0.30 × (100 − MAE_norm)
+
+* 0.20 × (100 − overtriggerRate)
+
+* 0.20 × (100 − undertriggerRate)
+
+* 0.20 × alertHitRate
+
+* 0.10 × routeStabilityScore
+
+```
+
+---
+
+## 📄 Where Metrics Appear
+
+### **Dashboard Integration**  
+
+Displayed in the *Route Performance Overview* panel.
+
+### **PDF Reports**  
+
+Included in all "Comprehensive Reports" with last-updated timestamp.
+
+---
+
+## 🎯 Why These Metrics Matter
+
+They help teams:
+
+- Diagnose prediction reliability  
+
+- Detect model drift  
+
+- Understand alert quality  
+
+- Reduce false alarms  
+
+- Monitor operational stability  
+
+- Build trust in the AI defense agent  
+
 ### 🧪 Integrated Testing & Simulation
 Generate realistic operational + adversarial data:
 

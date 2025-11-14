@@ -357,6 +357,134 @@ export default function RoutePerformance() {
         yPosition += noteLines.length * 6 + 5;
       });
 
+      // ===== AI EVALUATION METRICS SECTION =====
+      doc.addPage();
+      yPosition = 20;
+
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("AI System Evaluation Metrics (Last Updated)", 10, yPosition);
+      yPosition += 8;
+      
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 10, yPosition);
+      yPosition += 12;
+
+      const shipmentsWithActual = shipments.filter(s => s.expectedETA && s.actualETA);
+      const shipmentsWithPredicted = shipments.filter(s => s.predictedDelay != null);
+
+      let delayPredictionMAE = 0;
+      if (shipmentsWithActual.length > 0) {
+        const maeErrors: number[] = [];
+        shipmentsWithActual.forEach(shipment => {
+          const actualDelay = (new Date(shipment.actualETA!).getTime() - new Date(shipment.expectedETA).getTime()) / (1000 * 60);
+          const predictedDelay = shipment.predictedDelay != null ? shipment.predictedDelay : 0;
+          maeErrors.push(Math.abs(predictedDelay - actualDelay));
+        });
+        delayPredictionMAE = maeErrors.reduce((sum, err) => sum + err, 0) / maeErrors.length;
+      } else if (shipmentsWithPredicted.length > 0) {
+        delayPredictionMAE = shipmentsWithPredicted.reduce((sum, s) => sum + (s.predictedDelay || 0), 0) / shipmentsWithPredicted.length;
+      }
+
+      const completedShipments = shipments.filter(s => s.routeStatus === "completed" && s.expectedETA && s.actualETA);
+      
+      let overtriggers = 0;
+      let undertriggers = 0;
+      completedShipments.forEach(shipment => {
+        const actualDelay = (new Date(shipment.actualETA!).getTime() - new Date(shipment.expectedETA).getTime()) / (1000 * 60);
+        const predictedDelay = shipment.predictedDelay != null ? shipment.predictedDelay : 0;
+        if (predictedDelay > 30 && actualDelay < 10) {
+          overtriggers++;
+        }
+        if (predictedDelay < 15 && actualDelay > 30) {
+          undertriggers++;
+        }
+      });
+
+      const overtriggerRate = completedShipments.length > 0 ? (overtriggers / completedShipments.length) * 100 : 0;
+      const undertriggerRate = completedShipments.length > 0 ? (undertriggers / completedShipments.length) * 100 : 0;
+
+      let alertHits = 0;
+      alerts.forEach(alert => {
+        const shipment = shipments.find(s => s.id === alert.shipmentId);
+        if (shipment && shipment.expectedETA && shipment.actualETA) {
+          const actualDelay = (new Date(shipment.actualETA).getTime() - new Date(shipment.expectedETA).getTime()) / (1000 * 60);
+          const isHighMedium = alert.severity?.toLowerCase() === 'high' || alert.severity?.toLowerCase() === 'medium';
+          if (isHighMedium && actualDelay > 20) {
+            alertHits++;
+          }
+        }
+      });
+      const alertHitRate = alerts.length > 0 ? (alertHits / alerts.length) * 100 : 0;
+
+      let routeStabilityScore = 0;
+      if (shipmentsWithActual.length >= 5) {
+        const actualDelays = shipmentsWithActual.map(s => 
+          (new Date(s.actualETA!).getTime() - new Date(s.expectedETA).getTime()) / (1000 * 60)
+        );
+        const sorted = [...actualDelays].sort((a, b) => a - b);
+        const medianDelay = sorted.length % 2 === 0
+          ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+          : sorted[Math.floor(sorted.length / 2)];
+        
+        const madValues = actualDelays.map(d => Math.abs(d - medianDelay));
+        const sortedMAD = [...madValues].sort((a, b) => a - b);
+        const MAD = sortedMAD.length % 2 === 0
+          ? (sortedMAD[sortedMAD.length / 2 - 1] + sortedMAD[sortedMAD.length / 2]) / 2
+          : sortedMAD[Math.floor(sortedMAD.length / 2)];
+        
+        routeStabilityScore = Math.max(0, 100 - (MAD / 20) * 100);
+      } else if (shipmentsWithPredicted.length > 0) {
+        const predictedDelays = shipmentsWithPredicted.map(s => s.predictedDelay || 0);
+        const sorted = [...predictedDelays].sort((a, b) => a - b);
+        const medianPred = sorted.length % 2 === 0
+          ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+          : sorted[Math.floor(sorted.length / 2)];
+        
+        const madValues = predictedDelays.map(p => Math.abs(p - medianPred));
+        const sortedMAD = [...madValues].sort((a, b) => a - b);
+        const MAD = sortedMAD.length % 2 === 0
+          ? (sortedMAD[sortedMAD.length / 2 - 1] + sortedMAD[sortedMAD.length / 2]) / 2
+          : sortedMAD[Math.floor(sortedMAD.length / 2)];
+        
+        routeStabilityScore = Math.max(0, 100 - (MAD / 25) * 100);
+      }
+
+      const MAE_norm = Math.min(100, (delayPredictionMAE / 60) * 100);
+      const OC_norm = 100 - overtriggerRate;
+      const UC_norm = 100 - undertriggerRate;
+      const systemConfidenceScore = 
+        0.30 * (100 - MAE_norm) +
+        0.20 * OC_norm +
+        0.20 * UC_norm +
+        0.20 * alertHitRate +
+        0.10 * routeStabilityScore;
+
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+
+      const metrics = [
+        { label: "Delay Prediction MAE", value: delayPredictionMAE.toFixed(1) + " min" },
+        { label: "Overtrigger Rate", value: overtriggerRate.toFixed(1) + "%" },
+        { label: "Undertrigger Rate", value: undertriggerRate.toFixed(1) + "%" },
+        { label: "Alert Hit Rate", value: alertHitRate.toFixed(1) + "%" },
+        { label: "Route Stability Score", value: routeStabilityScore.toFixed(1) + "%" },
+        { label: "System Confidence Score", value: systemConfidenceScore.toFixed(1) + "%" },
+      ];
+
+      metrics.forEach(metric => {
+        if (yPosition > 270) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        doc.setFont("helvetica", "bold");
+        doc.text(`${metric.label}:`, 10, yPosition);
+        doc.setFont("helvetica", "normal");
+        doc.text(metric.value, 100, yPosition);
+        yPosition += 10;
+      });
+
       doc.save("Comprehensive_Logistics_Report.pdf");
     } catch (err) {
       console.error("Failed to generate comprehensive report:", err);
@@ -398,6 +526,133 @@ export default function RoutePerformance() {
       </div>
     );
   }
+
+  const calculateAIMetrics = () => {
+    if (!reportData) {
+      return {
+        delayPredictionMAE: 0,
+        overtriggerRate: 0,
+        undertriggerRate: 0,
+        alertHitRate: 0,
+        routeStabilityScore: 0,
+        systemConfidenceScore: 0,
+      };
+    }
+
+    const { shipments, alerts } = reportData;
+
+    const shipmentsWithActual = shipments.filter(s => s.expectedETA && s.actualETA);
+    const shipmentsWithPredicted = shipments.filter(s => s.predictedDelay != null);
+
+    let delayPredictionMAE = 0;
+    if (shipmentsWithActual.length > 0) {
+      const maeErrors: number[] = [];
+      shipmentsWithActual.forEach(shipment => {
+        const actualDelay = (new Date(shipment.actualETA!).getTime() - new Date(shipment.expectedETA).getTime()) / (1000 * 60);
+        const predictedDelay = shipment.predictedDelay != null ? shipment.predictedDelay : 0;
+        maeErrors.push(Math.abs(predictedDelay - actualDelay));
+      });
+      delayPredictionMAE = maeErrors.reduce((sum, err) => sum + err, 0) / maeErrors.length;
+    } else if (shipmentsWithPredicted.length > 0) {
+      delayPredictionMAE = shipmentsWithPredicted.reduce((sum, s) => sum + (s.predictedDelay || 0), 0) / shipmentsWithPredicted.length;
+    }
+
+    const completedShipments = shipments.filter(s => s.routeStatus === "completed" && s.expectedETA && s.actualETA);
+    
+    let overtriggers = 0;
+    let undertriggers = 0;
+    completedShipments.forEach(shipment => {
+      const actualDelay = (new Date(shipment.actualETA!).getTime() - new Date(shipment.expectedETA).getTime()) / (1000 * 60);
+      const predictedDelay = shipment.predictedDelay != null ? shipment.predictedDelay : 0;
+      if (predictedDelay > 30 && actualDelay < 10) {
+        overtriggers++;
+      }
+      if (predictedDelay < 15 && actualDelay > 30) {
+        undertriggers++;
+      }
+    });
+
+    const overtriggerRate = completedShipments.length > 0 ? (overtriggers / completedShipments.length) * 100 : 0;
+    const undertriggerRate = completedShipments.length > 0 ? (undertriggers / completedShipments.length) * 100 : 0;
+
+    let alertHits = 0;
+    alerts.forEach(alert => {
+      const shipment = shipments.find(s => s.id === alert.shipmentId);
+      if (shipment && shipment.expectedETA && shipment.actualETA) {
+        const actualDelay = (new Date(shipment.actualETA).getTime() - new Date(shipment.expectedETA).getTime()) / (1000 * 60);
+        const isHighMedium = alert.severity?.toLowerCase() === 'high' || alert.severity?.toLowerCase() === 'medium';
+        if (isHighMedium && actualDelay > 20) {
+          alertHits++;
+        }
+      }
+    });
+    const alertHitRate = alerts.length > 0 ? (alertHits / alerts.length) * 100 : 0;
+
+    let routeStabilityScore = 0;
+    if (shipmentsWithActual.length >= 5) {
+      const actualDelays = shipmentsWithActual.map(s => 
+        (new Date(s.actualETA!).getTime() - new Date(s.expectedETA).getTime()) / (1000 * 60)
+      );
+      const sorted = [...actualDelays].sort((a, b) => a - b);
+      const medianDelay = sorted.length % 2 === 0
+        ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+        : sorted[Math.floor(sorted.length / 2)];
+      
+      const madValues = actualDelays.map(d => Math.abs(d - medianDelay));
+      const sortedMAD = [...madValues].sort((a, b) => a - b);
+      const MAD = sortedMAD.length % 2 === 0
+        ? (sortedMAD[sortedMAD.length / 2 - 1] + sortedMAD[sortedMAD.length / 2]) / 2
+        : sortedMAD[Math.floor(sortedMAD.length / 2)];
+      
+      routeStabilityScore = Math.max(0, 100 - (MAD / 20) * 100);
+    } else if (shipmentsWithPredicted.length > 0) {
+      const predictedDelays = shipmentsWithPredicted.map(s => s.predictedDelay || 0);
+      const sorted = [...predictedDelays].sort((a, b) => a - b);
+      const medianPred = sorted.length % 2 === 0
+        ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+        : sorted[Math.floor(sorted.length / 2)];
+      
+      const madValues = predictedDelays.map(p => Math.abs(p - medianPred));
+      const sortedMAD = [...madValues].sort((a, b) => a - b);
+      const MAD = sortedMAD.length % 2 === 0
+        ? (sortedMAD[sortedMAD.length / 2 - 1] + sortedMAD[sortedMAD.length / 2]) / 2
+        : sortedMAD[Math.floor(sortedMAD.length / 2)];
+      
+      routeStabilityScore = Math.max(0, 100 - (MAD / 25) * 100);
+    }
+
+    const MAE_norm = Math.min(100, (delayPredictionMAE / 60) * 100);
+    const OC_norm = 100 - overtriggerRate;
+    const UC_norm = 100 - undertriggerRate;
+    const systemConfidenceScore = 
+      0.30 * (100 - MAE_norm) +
+      0.20 * OC_norm +
+      0.20 * UC_norm +
+      0.20 * alertHitRate +
+      0.10 * routeStabilityScore;
+
+    return {
+      delayPredictionMAE: Math.round(delayPredictionMAE * 100) / 100,
+      overtriggerRate: Math.round(overtriggerRate * 100) / 100,
+      undertriggerRate: Math.round(undertriggerRate * 100) / 100,
+      alertHitRate: Math.round(alertHitRate * 100) / 100,
+      routeStabilityScore: Math.round(routeStabilityScore * 100) / 100,
+      systemConfidenceScore: Math.round(systemConfidenceScore * 100) / 100,
+    };
+  };
+
+  const aiMetrics = calculateAIMetrics();
+
+  const getMetricColor = (value: number, isNegativeMetric: boolean = false) => {
+    if (isNegativeMetric) {
+      if (value < 20) return "bg-green-100 text-green-800 border-green-300";
+      if (value < 40) return "bg-amber-100 text-amber-800 border-amber-300";
+      return "bg-red-100 text-red-800 border-red-300";
+    }
+    if (value >= 80) return "bg-green-100 text-green-800 border-green-300";
+    if (value >= 60) return "bg-amber-100 text-amber-800 border-amber-300";
+    return "bg-red-100 text-red-800 border-red-300";
+  };
 
   const recentShipments = reportData?.shipments.slice(0, 5) || [];
 
@@ -503,6 +758,36 @@ export default function RoutePerformance() {
               )}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <div className="mb-6 pt-6 border-t border-gray-200">
+        <h4 className="text-sm font-semibold text-gray-700 mb-4">🧠 AI Evaluation Metrics</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className={`rounded-lg p-4 border ${getMetricColor(aiMetrics.delayPredictionMAE, true)}`}>
+            <p className="text-xs font-medium mb-1">Delay Prediction MAE</p>
+            <p className="text-2xl font-bold">{aiMetrics.delayPredictionMAE.toFixed(1)} min</p>
+          </div>
+          <div className={`rounded-lg p-4 border ${getMetricColor(aiMetrics.overtriggerRate, true)}`}>
+            <p className="text-xs font-medium mb-1">Overtrigger Rate</p>
+            <p className="text-2xl font-bold">{aiMetrics.overtriggerRate.toFixed(1)}%</p>
+          </div>
+          <div className={`rounded-lg p-4 border ${getMetricColor(aiMetrics.undertriggerRate, true)}`}>
+            <p className="text-xs font-medium mb-1">Undertrigger Rate</p>
+            <p className="text-2xl font-bold">{aiMetrics.undertriggerRate.toFixed(1)}%</p>
+          </div>
+          <div className={`rounded-lg p-4 border ${getMetricColor(aiMetrics.alertHitRate)}`}>
+            <p className="text-xs font-medium mb-1">Alert Hit Rate</p>
+            <p className="text-2xl font-bold">{aiMetrics.alertHitRate.toFixed(1)}%</p>
+          </div>
+          <div className={`rounded-lg p-4 border ${getMetricColor(aiMetrics.routeStabilityScore)}`}>
+            <p className="text-xs font-medium mb-1">Route Stability Score</p>
+            <p className="text-2xl font-bold">{aiMetrics.routeStabilityScore.toFixed(1)}%</p>
+          </div>
+          <div className={`rounded-lg p-4 border ${getMetricColor(aiMetrics.systemConfidenceScore)}`}>
+            <p className="text-xs font-medium mb-1">System Confidence Score</p>
+            <p className="text-2xl font-bold">{aiMetrics.systemConfidenceScore.toFixed(1)}%</p>
+          </div>
         </div>
       </div>
 
