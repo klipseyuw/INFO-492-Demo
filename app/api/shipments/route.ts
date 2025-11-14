@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getSessionFromRequest, requireRole } from "@/lib/auth";
 
 export async function GET(req: Request) {
   try {
+    const session = await getSessionFromRequest(req);
+  const guard = requireRole(session, ["OPERATOR", "ANALYST", "ADMIN"]);
+    if (!guard.ok) {
+      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
+    }
     const shipments = await prisma.shipment.findMany({
       orderBy: { lastUpdated: 'desc' },
       take: 50, // Limit to 50 most recent shipments
@@ -48,6 +54,11 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const session = await getSessionFromRequest(req);
+    const guard = requireRole(session, ["OPERATOR", "ADMIN"]);
+    if (!guard.ok) {
+      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
+    }
     const {
       routeId,
       driverName,

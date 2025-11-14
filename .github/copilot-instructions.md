@@ -1,110 +1,224 @@
 
 ## Logistics Defense AI – Agent Authoring Guide
 
-Purpose: Equip AI coding agents with precise, project-specific context for safe, efficient contributions. Keep edits minimal, aligned with current behavior, and token-efficient.
+**Purpose**: Equip AI coding agents with precise, project-specific context for safe, efficient contributions. Keep edits minimal, aligned with current behavior, and token-efficient.
 
-### 1) Architecture & Data Flow
-This is a Next.js App Router (TypeScript) project. The serverless API lives in `app/api/*`:
-- `ai/route.ts`: Risk analysis. Calls OpenRouter (model: `z-ai/glm-4.5-air:free`) with `response_format: json_object`; robust JSON extraction with multi-stage fallback (strip markdown, balanced brace extraction, regex salvage); falls back to deterministic analysis if API unavailable. **Reinforcement Learning**: Fetches recent accurate feedback from `/api/alerts/feedback` and enriches the prompt with 5 learning examples for few-shot learning. Alerts are persisted only when `riskScore > 20`. Severity: `>70 high`, `>40 medium`, else `low`. All analysis steps are logged. Returns `shipmentContext` JSON for feedback submission.
-- `agent/toggle/route.ts`: Upserts `User` and toggles `agentActive`. GET returns status. Agent must remain OFF unless explicitly enabled.
-- `agent/status/route.ts`: Returns agent status and recent activities from in-memory log (`lib/agentActivity.ts`). States: inactive/idle/active. POST accepts `system_check` action.
-- `shipments/route.ts`: Create and list latest 50 shipments. Accepts optional telemetry (origin/destination/GPS/coords/speed/heading) and normalizes types.
-- `alerts/route.ts`: List latest 100 and delete by id.
-- `alerts/feedback/route.ts`: POST submits user feedback (risk score accuracy, attack type correctness, corrections) for reinforcement learning. GET retrieves learning examples (optionally filtered to accurate ones) formatted for AI prompt enrichment. Feedback is stored in `AlertFeedback` model.
-- `analyses/route.ts`: Lists ALL AI predictions (including risk ≤ 20 that don't create alerts) from `Analysis` model. Enables feedback on safe predictions.
-- `analyses/feedback/route.ts`: POST submits feedback on `Analysis` records (for predictions that didn't generate alerts). Stores corrections in `AnalysisFeedback` model.
-- `alerts/predictive/route.ts`: Generates predictive warning alerts when predicted delay deviation exceeds threshold (default 30 min).
-- `analysis-report/route.ts`: Builds structured incident report from latest alert + shipment details.
-- `simulate-attack/route.ts`: Creates a suspicious shipment and (if agent active) immediately triggers `/api/ai` for analysis. **Critical**: Must forward `Cookie` header from incoming request to internal `/api/ai` call for authentication passthrough.
+---
+
+### 1) Architecture Overview
+
+**Next.js 15 App Router (TypeScript)** with serverless API routes in `app/api/*`. PostgreSQL/SQLite via Prisma ORM.
+
+**Critical API Routes**:
+- `ai/route.ts`: Risk analysis via OpenRouter (`z-ai/glm-4.5-air:free`). Defensive JSON parsing (strips markdown, balanced brace extraction). **Reinforcement Learning**: Fetches 5 recent accurate feedback examples from `/api/alerts/feedback` for few-shot prompting. Creates `Alert` only when `riskScore > 20`. Severity: `>70 high`, `>40 medium`, else `low`. Returns `shipmentContext` JSON for feedback. Logs with `[AI]` prefix.
+- `agent/toggle/route.ts`: Toggle `User.agentActive`. Agent is **OFF by default**—never auto-enable.
+- `agent/status/route.ts`: Returns agent state (inactive/idle/active) + recent activities from `lib/agentActivity.ts`.
+- `shipments/route.ts`: Create/list shipments (latest 50). Accepts optional telemetry (origin/dest/GPS/speed/heading).
+- `alerts/route.ts`: List latest 100 alerts; DELETE by id.
+- `alerts/feedback/route.ts`: Submit feedback (risk score accuracy, attack type correctness, corrections) for RL. GET retrieves learning examples. Stored in `AlertFeedback`.
+- `analyses/route.ts`: Lists ALL predictions (including `riskScore ≤ 20`). Enables feedback on safe predictions.
+- `analyses/feedback/route.ts`: Submit feedback on `Analysis` records. Stored in `AnalysisFeedback`.
+- `alerts/predictive/route.ts`: Predictive warnings when delay deviation exceeds threshold (default 30 min).
+- `analysis-report/route.ts`: Structured incident report from latest alert + shipment.
+- `simulate-attack/route.ts`: Creates suspicious shipment + triggers `/api/ai`. **Critical**: Forward `Cookie` header from request to `/api/ai` for auth passthrough.
 - `schedule-predict/route.ts`: Linear regression + moving average delay prediction with confidence scoring.
-- `health/route.ts`: Simple health check endpoint.
-- `auth/*`: Email/phone-based passwordless authentication using 6-digit codes. `send-code/route.ts` generates codes (5-min expiry), `verify-code/route.ts` validates and issues JWT via `jose` library, `logout/route.ts` clears auth cookie, `me/route.ts` returns current user from JWT. Auth tokens stored in `auth_token` httpOnly cookie.
+- `auth/*`: Passwordless auth (email/phone + 6-digit codes, 5-min expiry). JWT via `jose`, stored in `auth` httpOnly cookie.
 
-Client components (`components/*`) poll endpoints with adaptive intervals (faster when tab visible) and always provide manual Refresh. `AlertFeedbackModal` provides UI for rating alert accuracy.
+**Frontend**: Components poll with **adaptive intervals** (15s visible, 45s hidden). Always include manual Refresh button. See `ShipmentTable`, `AlertFeed`, `AgentStatusMonitor` for patterns.
 
+---
 
-### 2) Persistence & Models (Prisma `schema.prisma`)
-Models: 
-- `Shipment` (with optional telemetry + `predictedDelay`)
-- `Alert` + `AlertFeedback` (1:1 relationship; feedback for alerts with riskScore > 20)
-- `Analysis` + `AnalysisFeedback` (1:1 relationship; tracks ALL predictions including safe ones)
-- `User` (with `agentActive` boolean, `email`/`phone` for auth)
-- `VerificationCode` (time-limited auth codes, 5-min expiry, auto-cleaned)
-- `AgentActivity` (persisted activity log with metadata JSON field)
+### 2) Database Models (Prisma)
 
-Dev DB is SQLite via `DATABASE_URL` (can swap to Postgres in prod; do not hardcode provider logic). Use `findMany({ orderBy, take })` to bound list sizes. Shipment telemetry fields (origin, destination, gpsOnline, lastKnownLat/Lng, speedKph, headingDeg) are optional and normalized to proper types on creation. Both feedback models store human ratings for reinforcement learning via few-shot prompting.
+**Core Models**:
+- `Shipment`: routeId, driverName, expectedETA, actualETA, optional telemetry (origin/dest/GPS/speed/heading), `predictedDelay`
+- `Alert` + `AlertFeedback` (1:1): Feedback stores human ratings for RL (riskScoreAccurate, attackTypeCorrect, corrections, `valuePreference`)
+- `Analysis` + `AnalysisFeedback` (1:1): Tracks ALL predictions including safe ones (`riskScore ≤ 20`)
+- `User`: email/phone, `agentActive` (default false), `role` (ANALYST/OPERATOR/ADMIN)
+- `VerificationCode`: time-limited auth codes (5-min expiry)
+- `AgentActivity`: persisted activity log with metadata JSON
+- `RegionalRiskProfile`: aggregated risk stats by region
 
+**Dev DB**: SQLite (`file:./prisma/dev.db`). **Production**: PostgreSQL. No provider-specific logic; use `findMany({ orderBy, take })` to limit results.
 
-### 3) Risk & Alert Rules
-- Only create alerts when `riskScore > 20` (see `ai/route.ts`).
-- Severity: `>70 → high`, `>40 → medium`, else low.
-- Fallback analysis must tag `source: 'fallback'` and use compact prompt: `max_tokens ≈ 200`, `temperature: 0.4`.
-- Always re-check `user.agentActive` before any external AI call; never auto-enable.
+---
 
+### 3) RBAC & Authentication
 
-### 4) Conventions & Error Style
-- API success: `{ success: true, ... }`; errors: `{ error, message? }` with appropriate status codes.
-- Defensive AI JSON parsing: strip code fences, extract first `{...}`, try/catch, then fallback.
-- Keep responses lean; avoid storing raw prompts/large payloads in DB.
-- Use `[AI]` log prefixes for notable analysis steps.
-
-
-### 5) Environment & Config
-`DATABASE_URL`, `OPENROUTER_API_KEY`, `NEXTAUTH_URL` (also used as Referer header), `JWT_SECRET` (for signing auth tokens via `jose`). Never log secrets. If keys are missing or calls fail, degrade gracefully to fallback analysis.
-
-
-### 6) Authentication & Middleware
-- **Passwordless Auth**: Email or phone + 6-digit verification code (5-min expiry). Codes stored in `VerificationCode` model.
-- **JWT Tokens**: Signed using `jose` library with `JWT_SECRET`; stored in `auth_token` httpOnly cookie.
-- **Protected Routes**: `middleware.ts` guards `/dashboard` (redirects to login) and most `/api/*` routes (returns 401). Auth routes (`/api/auth/*`) and public routes (`/`, `/login`) are exempt.
-- **Internal API Calls**: When one API route calls another protected route (e.g., `simulate-attack` → `ai`), must forward `Cookie` header from original request to preserve authentication context. Example:
+**Role-Based Access Control**:
+- `lib/auth.ts`: `getSessionFromRequest()` extracts JWT from `auth` cookie; `requireRole(session, ['ANALYST', 'ADMIN'])` guards routes
+- Example pattern (all protected routes):
+  ```typescript
+  const session = await getSessionFromRequest(req);
+  const guard = requireRole(session, ["ANALYST", "ADMIN"]);
+  if (!guard.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  ```
+- Role hierarchy: `ADMIN` (full access), `ANALYST` (analysis + reports), `OPERATOR` (shipments only)
+- **Internal API calls**: Forward `Cookie` header when calling protected routes (e.g., `simulate-attack` → `ai`):
   ```typescript
   const cookieHeader = req.headers.get('cookie') || '';
   await axios.post('/api/ai', data, { headers: { Cookie: cookieHeader } });
   ```
 
+**Middleware** (`middleware.ts`):
+- Protects `/dashboard` routes (redirects to `/login` if unauthenticated)
+- Protects most `/api/*` routes (returns 401)
+- Exempts `/api/auth/*`, `/api/health`, `/login`, `/`
+- JWT tokens signed with `NEXTAUTH_SECRET` via `jose` library
 
-### 7) Developer Workflows
-- Dev server: `npm run dev` (Turbopack)
-- Simulations: `npm run simulate` (continuous) | `npm run simulate:single` (one-off)
-- Prisma: `npm run db:generate` | `npm run db:migrate` | `npm run db:studio`
-- Data reset: `npm exec tsx scripts/clearData.ts` (clears Shipments + Alerts)
-- Tests: `npm run test` aggregates `tests/test-*.js` scenarios (normal, ai, attack). Note: test files may not exist yet; scripts reference them in package.json.
-- Lint: `npm run lint` (ESLint checks)
-- **After installing new dependencies**: Run `npm install` followed by `npm run db:generate` to regenerate Prisma Client if needed
+**Passwordless Auth**:
+- Send 6-digit code → verify → issue JWT (7-day expiry)
+- Demo accounts (optional): Set `DEMO_ADMIN_EMAIL`, `DEMO_ADMIN_PASSWORD`, etc. in `.env`
 
+---
 
-### 8) Frontend Patterns
-- **Adaptive Polling**: All live panels (e.g. `ShipmentTable`, `AlertFeed`, `AgentStatusMonitor`) adjust interval based on `document.visibilityState`: 15s when visible, 45s when hidden. Keep cadence consistent for new panels.
-- **Polling Cleanup**: Always clear intervals in component cleanup and re-initialize on visibility change.
-- **Manual Refresh**: Every live panel includes a manual Refresh button for instant updates.
-- **Tailwind Styling**: Cards with header, actions, error banner; use utility classes for responsive layouts.
-- **State Management**: Use `useState` for local state; `useEffect` for data fetching and polling setup.
+### 4) Risk Analysis & Alert Rules
 
+**Alert Creation**:
+- Only create `Alert` when `riskScore > 20` (see `ai/route.ts`)
+- Severity mapping: `>70 → high`, `>40 → medium`, else `low`
+- Always log with `[AI]` prefix for notable steps
+
+**Reinforcement Learning**:
+- Human feedback submitted via `AlertFeedbackModal` → stored in `AlertFeedback`
+- Next analysis fetches 5 recent accurate examples from `/api/alerts/feedback?accurate=true`
+- Few-shot learning: inject examples into AI prompt (no model training)
+
+**Fallback Analysis**:
+- If OpenRouter fails, use compact fallback prompt: `max_tokens ≈ 200`, `temperature: 0.4`
+- Tag with `source: 'fallback'`
+
+**Safety**: Always re-check `user.agentActive` before external AI calls; never auto-enable.
+
+---
+
+### 5) Frontend Patterns
+
+**Adaptive Polling** (keep consistent across all live panels):
+```typescript
+useEffect(() => {
+  const delay = document.visibilityState === 'visible' ? 15000 : 45000; // 15s visible, 45s hidden
+  const interval = setInterval(fetchData, delay);
+  return () => clearInterval(interval);
+}, [/* deps */]);
+```
+
+**Manual Refresh**: Every live panel must have a Refresh button for instant updates.
+
+**Tailwind Styling**: Cards with header, actions, error banner; responsive utility classes.
+
+**Component Examples**: `ShipmentTable`, `AlertFeed`, `AgentStatusMonitor`, `AlertFeedbackModal`
+
+---
+
+### 6) Developer Workflows
+
+**Development**:
+```bash
+npm run dev              # Turbopack dev server
+npm run simulate         # Continuous simulation (60s interval)
+npm run simulate:single  # Single shipment test
+```
+
+**Database**:
+```bash
+npm run db:generate      # Generate Prisma Client
+npm run db:migrate       # Create migration
+npm run db:studio        # Open Prisma Studio (localhost:5555)
+npm exec tsx scripts/clearData.ts  # Reset data
+```
+
+**Testing**:
+```bash
+npm run test             # Aggregates test-normal, test-ai, test-attack
+npm run lint             # ESLint checks
+```
+
+**After installing dependencies**: Run `npm install && npm run db:generate`
+
+**After schema changes**: **Always** run `npm run db:migrate` before server starts (migrations required)
+
+---
+
+### 7) Conventions & Error Handling
+
+**API Responses**:
+- Success: `{ success: true, ... }`
+- Error: `{ error: "message", message?: "details" }` with appropriate status code (401, 403, 500)
+
+**Defensive AI JSON Parsing**: Strip code fences → extract first `{...}` → try/catch → fallback
+
+**Logging**: Use `[AI]` prefix for analysis steps; never log secrets
+
+**Keep lean**: Avoid storing raw prompts/large payloads in DB
+
+---
+
+### 8) Environment Variables
+
+**Required**:
+- `DATABASE_URL`: PostgreSQL connection string (production) or `file:./prisma/dev.db` (dev)
+- `OPENROUTER_API_KEY`: OpenRouter API key (graceful degradation if missing)
+- `NEXTAUTH_SECRET`: JWT signing secret (generate: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`)
+- `NEXTAUTH_URL`: App URL (used as Referer header)
+
+**Optional** (demo RBAC):
+- `DEMO_ADMIN_EMAIL`, `DEMO_ADMIN_PASSWORD`
+- `DEMO_ANALYST_EMAIL`, `DEMO_ANALYST_PASSWORD`
+- `DEMO_OPERATOR_EMAIL`, `DEMO_OPERATOR_PASSWORD`
+
+---
 
 ### 9) Activity Logging
-`lib/agentActivity.ts` maintains an in-memory activity feed (dev/demo); persisted `AgentActivity` model exists for production use. When expanding features, add new `type` values (e.g., `routine_analysis`, `threat_analysis`, `threat_detected`). Close activities with `duration` and final `status`. Both in-memory and DB patterns coexist; prefer DB for persistent logs.
 
+`lib/agentActivity.ts`: In-memory activity feed (dev/demo). `AgentActivity` model persists for production.
+
+When adding features, use new `type` values: `routine_analysis`, `threat_analysis`, `threat_detected`, `system_check`.
+
+Close activities with `duration` (ms) and final `status` (completed/failed).
+
+---
 
 ### 10) Safe Extension Guidelines
-- Before AI calls: validate activation + required fields; keep prompts compact.
-- If introducing new severity levels, update: `ai/route.ts` alert creation, UI badge mapping, and tests.
-- Avoid long-running loops inside API routes; use client polling or external scripts (`scripts/simulateRoutes.ts`).
-- **Database Changes**: Always run `npm run db:migrate` after modifying `schema.prisma`. Migrations are required before server can start.
 
+- **Before AI calls**: Validate activation + required fields; keep prompts compact
+- **New severity levels**: Update `ai/route.ts` alert creation, UI badge mapping, tests
+- **Avoid long-running loops** in API routes; use client polling or external scripts (`scripts/simulateRoutes.ts`)
+- **Database changes**: Always `npm run db:migrate` after modifying `schema.prisma`
+- **Never log secrets**; degrade gracefully if keys missing
 
-### 11) Do NOT change without direction
+---
+
+### 11) DO NOT Change Without Direction
+
 - Model name: `z-ai/glm-4.5-air:free`
-- Alert thresholds and creation rules
-- Agent default OFF behavior and toggle flow
-- Existing polling cadence
+- Alert thresholds (riskScore > 20, severity mappings)
+- Agent default OFF behavior
+- Polling cadence (15s visible / 45s hidden)
 
+---
 
-### 12) Quick File Map
-`app/api/ai/route.ts` (analysis + fallback + reinforcement learning) | `app/api/agent/{toggle,status}/route.ts` | `app/api/shipments/route.ts` | `app/api/alerts/route.ts` | `app/api/alerts/feedback/route.ts` (reinforcement learning) | `app/api/analyses/route.ts` (all predictions including safe) | `app/api/analyses/feedback/route.ts` (safe prediction feedback) | `app/api/alerts/predictive/route.ts` | `app/api/analysis-report/route.ts` | `app/api/simulate-attack/route.ts` | `app/api/schedule-predict/route.ts` | `app/api/health/route.ts` | `components/{AgentToggle,AgentStatusMonitor,ShipmentTable,AlertFeed,RecentAnalyses,AlertFeedbackModal,AnalysisReport,SimulateAttackButton,DelayPredictionChart}.tsx` | `lib/{prisma.ts,agentActivity.ts}` | `scripts/simulateRoutes.ts` | `prisma/schema.prisma`
+### 12) Quick File Reference
 
+**API**: `app/api/ai/route.ts` | `app/api/agent/{toggle,status}/route.ts` | `app/api/shipments/route.ts` | `app/api/alerts/route.ts` | `app/api/alerts/feedback/route.ts` | `app/api/analyses/route.ts` | `app/api/analyses/feedback/route.ts` | `app/api/alerts/predictive/route.ts` | `app/api/analysis-report/route.ts` | `app/api/simulate-attack/route.ts` | `app/api/schedule-predict/route.ts` | `app/api/auth/{send-code,verify-code,logout,me}/route.ts`
+
+**Components**: `components/{AgentToggle,AgentStatusMonitor,ShipmentTable,AlertFeed,RecentAnalyses,AlertFeedbackModal,AnalysisReport,SimulateAttackButton,DelayPredictionChart}.tsx`
+
+**Lib**: `lib/{prisma.ts,agentActivity.ts,auth.ts,jwt.ts}`
+
+**Scripts**: `scripts/{simulateRoutes.ts,clearData.ts}`
+
+**Config**: `prisma/schema.prisma` | `middleware.ts`
+
+---
 
 ### 13) PR Expectations
-Keep diffs minimal. Justify any threshold/model changes in the commit message. Update or add a test when altering risk logic. Prefer incremental changes with clear `[AI]` logs.
 
-If unsure, inspect an existing route or component and mirror its patterns.
+- Keep diffs minimal; justify threshold/model changes in commit message
+- Update or add tests when altering risk logic
+- Prefer incremental changes with clear `[AI]` logs
+- If unsure, inspect existing routes/components and mirror patterns
+
+---
+
+**When uncertain**: Inspect an existing route or component and follow its established patterns.

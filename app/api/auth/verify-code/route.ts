@@ -1,114 +1,112 @@
-// app/api/auth/verify-code/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { SignJWT } from 'jose';
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { SignJWT } from "jose";
 
-type Role = 'ANALYST' | 'OPERATOR' | 'ADMIN';
-type CodeLite = { id: string; code: string; expiresAt: Date };
+type Role = "ANALYST" | "OPERATOR" | "ADMIN";
 
-function normalizePhone(phone?: string) {
-  return phone ? phone.replace(/[\s\-\(\)]/g, '') : undefined;
-}
+const normEmail = (s: unknown) =>
+  typeof s === "string" ? s.trim().toLowerCase() : "";
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const body = await request.json();
-    const { email, phone, code } = body as { email?: string; phone?: string; code?: string };
+    const body = await req.json();
+    const {
+      email: rawEmail,
+      code,
+    }: { email?: string; code?: string } = body || {};
 
-    // 1) Validate input
-    if (!code || (!email && !phone)) {
+    const email = normEmail(rawEmail);
+
+    if (!code || !email) {
       return NextResponse.json(
-        { success: false, error: 'Email/phone and code are required' },
+        { success: false, error: "Email and 6-digit code required" },
         { status: 400 }
       );
     }
 
-    // 2) Find user by email OR normalized phone; explicitly select `role` and codes
     const user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          email ? { email } : undefined,
-          normalizePhone(phone) ? { phone: normalizePhone(phone) } : undefined,
-        ].filter(Boolean) as any,
-      },
+      where: { email },
       select: {
         id: true,
         email: true,
-        phone: true,
         name: true,
         agentActive: true,
-        role: true, // <-- ensure TS knows role is present
+        role: true,
         verificationCodes: {
-          select: { id: true, code: true, expiresAt: true, createdAt: true, userId: true },
+          select: { id: true, code: true, expiresAt: true },
+          orderBy: { expiresAt: "desc" },
+          take: 5,
         },
       },
     });
 
     if (!user) {
-      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "User not found" },
+        { status: 404 }
+      );
     }
 
-    // 3) Validate verification code (not expired)
-    const validCode = user.verificationCodes.find(
-      (vc: CodeLite) => vc.code === code && new Date(vc.expiresAt) > new Date()
+    const now = new Date();
+    const match = user.verificationCodes.find(
+      (vc) => vc.code === String(code) && new Date(vc.expiresAt) > now
     );
-
-    if (!validCode) {
-      // Clean up expired codes
+    if (!match) {
+      // cleanup any expired codes
       await prisma.verificationCode.deleteMany({
-        where: { userId: user.id, expiresAt: { lt: new Date() } },
+        where: { userId: user.id, expiresAt: { lt: now } },
       });
       return NextResponse.json(
-        { success: false, error: 'Invalid or expired verification code' },
+        { success: false, error: "Invalid or expired code" },
         { status: 401 }
       );
     }
 
-    // 4) Consume the one-time code
-    await prisma.verificationCode.delete({ where: { id: validCode.id } });
+    // consume the code
+    await prisma.verificationCode.delete({ where: { id: match.id } });
 
-    // 5) Create JWT (pack role for RBAC)
+    // Use the role already set during send-code (credentials validation)
+    const effectiveRole: Role = user.role as Role;
+
+    // issue JWT with effectiveRole
     const secret = new TextEncoder().encode(
-      process.env.NEXTAUTH_SECRET || 'your-secret-key-change-this'
+      process.env.NEXTAUTH_SECRET || "dev-secret"
     );
 
     const token = await new SignJWT({
       sub: user.id,
       email: user.email,
-      phone: user.phone,
-      role: user.role as Role,
+      role: effectiveRole,
     })
-      .setProtectedHeader({ alg: 'HS256' })
+      .setProtectedHeader({ alg: "HS256" })
       .setIssuedAt()
-      .setExpirationTime('7d')
+      .setExpirationTime("7d")
       .sign(secret);
 
-    // 6) Response body (non-sensitive)
-    const response = NextResponse.json({
+    const res = NextResponse.json({
       success: true,
-      message: 'Authentication successful',
       user: {
         id: user.id,
         email: user.email,
-        phone: user.phone,
-        role: user.role as Role,
+        role: effectiveRole,
         agentActive: user.agentActive,
       },
     });
 
-    // 7) Set HttpOnly cookie (name MUST match middleware)
-    response.cookies.set('auth', token, {
+    res.cookies.set("auth", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      path: '/',
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
     });
 
-    console.log(`✅ Auth OK: ${user.email || user.phone} (id=${user.id}, role=${user.role})`);
-    return response;
-  } catch (err) {
-    console.error('Verify code error:', err);
-    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
+    return res;
+  } catch (e) {
+    console.error("Verify code error:", e);
+    return NextResponse.json(
+      { success: false, error: "Verification failed" },
+      { status: 500 }
+    );
   }
 }

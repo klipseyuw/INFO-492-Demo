@@ -1,36 +1,45 @@
 # 🚛 Logistics Defense AI Platform
 
-> **⚠️ IMPORTANT**: All commands in this README should be run from the project root directory.
+> **⚠️ IMPORTANT**: All commands in this README should be run from the project root directory (`INFO-492-Demo`).
 
-A cutting-edge cybersecurity defense platform for warehouse logistics operations, utilizing AI-powered anomaly detection to identify route manipulation, data tampering, and cyber-physical disruptions in real-time.
+A cutting-edge cybersecurity defense platform for warehouse logistics operations, utilizing AI-powered anomaly detection with **reinforcement learning** to identify route manipulation, data tampering, and cyber-physical disruptions in real-time.
+
+## ✨ Key Features at a Glance
+
+- 🤖 **AI-Powered Threat Detection** with few-shot reinforcement learning
+- 🔒 **Role-Based Access Control (RBAC)** for Analysts, Operators, and Admins
+- 🔐 **Passwordless Authentication** via email/phone verification codes
+- 📊 **Real-time Dashboard** with adaptive polling (15s visible / 45s hidden)
+- 🎯 **Human-in-the-Loop Feedback** system for continuous AI improvement
+- 🔮 **Predictive Scheduling** with confidence scoring and deviation alerts
+- 🚨 **Smart Alert System** with severity classification (High/Medium/Low)
+- 🗺️ **Regional Risk Profiling** for geographic threat patterns
 
 ## 🏗️ Technology Stack
 
-- **Frontend**: Next.js 15 (App Router) + TypeScript + TailwindCSS
+- **Frontend**: Next.js 15 (App Router) + React 19 + TypeScript + TailwindCSS
 - **Backend**: Next.js serverless API routes (`app/api/*`)
-- **Database**: SQLite for dev (see `prisma/schema.prisma`) — can swap to Postgres via `DATABASE_URL` in prod
-- **ORM**: Prisma Client
-- **AI Engine**: OpenRouter API (model: `z-ai/glm-4.5-air:free`) with robust local fallback simulation
-- **Runtime**: Node.js 18+ with Turbopack for fast development
-- **Deployment**: Vercel (recommended) / Docker compatible
+- **Database**: PostgreSQL (production) / SQLite (development) via Prisma ORM
+- **AI Engine**: OpenRouter API (`z-ai/glm-4.5-air:free`) with robust local fallback
+- **Authentication**: Passwordless auth with JWT tokens (via `jose` library)
+- **Runtime**: Node.js 18+ with Turbopack for fast hot-reload development
+- **Deployment**: Render.com / Vercel / Docker compatible
 
 ## 📋 Prerequisites
 
-Before starting, ensure you have:
-
-- **Node.js 18+** installed ([Download here](https://nodejs.org/))
-- **Git** installed for version control
+- **Node.js 18+** ([Download](https://nodejs.org/))
+- **Git** for version control
 - **Terminal/Command Prompt** access
-- **OpenRouter API account** (free tier available)
-- **PostgreSQL database** (optional - Prisma dev database included)
+- **OpenRouter API account** (free tier available at [openrouter.ai](https://openrouter.ai))
+- **PostgreSQL database** (optional - SQLite dev database included)
 
 ## 🚀 Quick Start Guide
 
-### Step 1: Navigate to Project Directory
+### Step 1: Clone & Navigate to Project
 
 ```bash
-# CRITICAL: All commands must be run from the project root directory
-# (already in correct directory if you cloned the project)
+git clone <your-repo-url>
+cd INFO-492-Demo
 ```
 
 ### Step 2: Install Dependencies
@@ -39,49 +48,115 @@ Before starting, ensure you have:
 npm install
 ```
 
+This automatically runs `npm run db:generate` via the `postinstall` script.
+
 ### Step 3: Database Configuration
 
-**Option A: Use Built-in Prisma Database (Recommended)**
+**Option A: Use Built-in SQLite Database (Recommended for Development)**
 ```bash
-# Generate Prisma client
-npx prisma generate
-
-# The database is pre-configured in .env with a working Prisma dev database
+# Database is pre-configured in .env with SQLite
+# Prisma client is already generated from Step 2
+npx prisma migrate dev --name init
 ```
 
-**Option B: Use Your Own PostgreSQL Database**
+**Option B: Use PostgreSQL Database (Production)**
 ```bash
-# 1. Update the DATABASE_URL in .env file with your connection string
+# 1. Update DATABASE_URL in .env with your PostgreSQL connection string
 # 2. Run migration to create tables
 npx prisma migrate dev --name init
 
-# 3. Generate Prisma client
-npx prisma generate
+# 3. Verify with Prisma Studio
+npx prisma studio
 ```
 
+### Step 4: Configure Environment Variables
 
-### Step 4: Configure OpenRouter API
-
-The `.env` file already contains a working OpenRouter API key for testing. For production:
-
-1. **Sign up** at [OpenRouter.ai](https://openrouter.ai/)
-2. **Get your API key** from the dashboard
-3. **Replace** the `OPENROUTER_API_KEY` in your `.env` file
+The `.env` file contains working defaults. For production, update:
 
 ```env
+# Database (default uses SQLite)
+DATABASE_URL="file:./prisma/dev.db"
+
+# OpenRouter API (replace with your key)
 OPENROUTER_API_KEY="sk-or-v1-your-api-key-here"
+
+# JWT Secret (generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+NEXTAUTH_SECRET="your-secure-secret-key"
+
+# App URL
+NEXTAUTH_URL="http://localhost:3000"
+
+# Optional: Demo RBAC accounts
+DEMO_ADMIN_EMAIL="admin@example.com"
+DEMO_ADMIN_PASSWORD="adminpass"
+DEMO_ANALYST_EMAIL="analyst@example.com"
+DEMO_ANALYST_PASSWORD="analystpass"
+DEMO_OPERATOR_EMAIL="operator@example.com"
+DEMO_OPERATOR_PASSWORD="operatorpass"
 ```
+
+**Get your OpenRouter API key**:
+1. Sign up at [OpenRouter.ai](https://openrouter.ai/)
+2. Navigate to dashboard and copy your API key
+3. Replace `OPENROUTER_API_KEY` in `.env`
 
 ### Step 5: Start Development Server
 
 ```bash
-# Must be run from project root directory
 npm run dev
 ```
 
-🎉 **Success!** Navigate to **http://localhost:3000/dashboard**
+🎉 **Success!** Navigate to **http://localhost:3000** (redirects to `/login`)
+
+### Step 6: Login & Test
+
+1. **Login** using email (e.g., `admin@example.com`) or demo account
+2. Check terminal for 6-digit verification code (in dev mode)
+3. Enter code to access dashboard
+4. **Enable AI Agent** using the toggle switch
+5. **Run simulation**: `npm run simulate:single` in new terminal
+6. **Verify alerts** appear in the dashboard
 
 ## 🛡️ Platform Features
+
+### 🔐 Role-Based Access Control (RBAC)
+
+Three distinct user roles with granular permissions enforced at both middleware and API levels:
+
+- **👑 ADMIN** - Full system access
+  - All analyst + operator capabilities
+  - Main dashboard access (`/dashboard`)
+  - Attack simulation privileges (`/api/simulate-attack`)
+  - User and settings management
+
+- **📊 ANALYST** - Analysis and reporting
+  - Analyst dashboard (`/dashboard/analyst`)
+  - View all shipments and alerts
+  - Submit AI feedback for reinforcement learning
+  - Generate analysis reports
+  - Access predictive scheduling tools
+
+- **📦 OPERATOR** - Basic logistics operations
+  - Operator dashboard (`/dashboard/operator`)
+  - View and create shipments
+  - View-only alert access
+  - Cannot trigger AI analysis or simulations
+
+**Technical Implementation**:
+- `middleware.ts` guards all protected routes with authentication checks
+- `lib/auth.ts` provides `requireRole()` helper for granular API-level access control
+- Internal API calls must forward `Cookie` header for auth passthrough (see `simulate-attack/route.ts`)
+- JWT tokens (via `jose` library) stored in httpOnly `auth` cookie with 7-day expiry
+
+### 👥 Class Feedback (Mid-Quarter Improvements)
+
+- **RBAC rigor for agents:** Ensure roles strictly separate what agents can see/do; test for overlap/leakage and enforce on the server.
+- **Realism in data:** Use noisier, real-world routing/telemetry and schedule changes to validate anomaly detection under real conditions.
+- **Resilience under load/DoS:** Stress-test the agent path (queueing, rate limits, backpressure, circuit breakers) to degrade safely and recover.
+- **Breach playbook:** Define incident response (detect → contain → communicate → recover) and make it role-gated/auditable.
+- **Value model nuance:** Don’t rely on dollar value alone—prioritize essentials (e.g., food, critical meds) with context-aware weighting.
+- **Reduce rater fatigue:** Shift from manual ratings to backend RL and synthetic data from flagged cases to keep learning without user burnout.
+- **Integration risk:** Validate that the four key improvements work together end-to-end, not just in isolation.
 
 ### 🤖 AI-Powered Threat Detection
 - **Real-time Analysis**: `/api/ai` evaluates shipment timing and attack simulations, logs all analysis steps with `[AI]` prefix
@@ -146,6 +221,136 @@ The AI agent learns from human feedback using **few-shot learning** (no custom m
 - Provide detailed notes explaining why predictions were wrong
 - Focus on correcting high-severity alerts first
 - Review learning examples in database via Prisma Studio
+
+# 📊 AI Evaluation Metrics
+
+To ensure transparency, reliability, and operational trust, the Logistics Defense AI Platform includes a dedicated **AI Evaluation System**.  
+
+These metrics measure how well the defense agent predicts delays, triggers alerts, avoids false alarms, and maintains operational stability across routes.
+
+All metrics are generated automatically using **real shipment timelines**, **predicted vs actual delays**, and **alert logs**.
+
+---
+
+## 🧠 Key Performance Indicators
+
+### **1. Delay Prediction MAE (Mean Absolute Error)**  
+
+Measures how far predicted delays deviate from actual delays.  
+
+Data sources: `predictedDelay`, `expectedETA`, `actualETA`
+
+```
+
+actualDelay = actualETA - expectedETA
+
+MAE = avg(|predictedDelay − actualDelay|)
+
+```
+
+---
+
+### **2. Overtrigger Rate (False Positive Operational Rate)**  
+
+AI predicts major delays that never occur.  
+
+Data: `predictedDelay`, `actualDelay`
+
+```
+
+predictedDelay > 30 AND actualDelay < 10
+
+```
+
+---
+
+### **3. Undertrigger Rate (False Negative Operational Rate)**  
+
+AI fails to detect real severe delays.
+
+```
+
+predictedDelay < 15 AND actualDelay > 30
+
+```
+
+---
+
+### **4. Alert Hit Rate (True Positive Alignment)**  
+
+Whether alerts correspond to meaningful operational issues.
+
+```
+
+(severity = high OR medium) AND actualDelay > 20
+
+```
+
+---
+
+### **5. Route Stability Score (Operational Consistency Index)**  
+
+MAD-based score:
+
+```
+
+MAD = median(|delay_i − median(delay)|)
+
+RouteStabilityScore = max(0, 100 − (MAD / 20) × 100)
+
+```
+
+---
+
+### **6. System Confidence Score (Overall Reliability Index)**  
+
+Weighted composite:
+
+```
+
+SystemConfidenceScore =
+
+0.30 × (100 − MAE_norm)
+
+* 0.20 × (100 − overtriggerRate)
+
+* 0.20 × (100 − undertriggerRate)
+
+* 0.20 × alertHitRate
+
+* 0.10 × routeStabilityScore
+
+```
+
+---
+
+## 📄 Where Metrics Appear
+
+### **Dashboard Integration**  
+
+Displayed in the *Route Performance Overview* panel.
+
+### **PDF Reports**  
+
+Included in all "Comprehensive Reports" with last-updated timestamp.
+
+---
+
+## 🎯 Why These Metrics Matter
+
+They help teams:
+
+- Diagnose prediction reliability  
+
+- Detect model drift  
+
+- Understand alert quality  
+
+- Reduce false alarms  
+
+- Monitor operational stability  
+
+- Build trust in the AI defense agent  
 
 ### 🧪 Integrated Testing & Simulation
 Generate realistic operational + adversarial data:
@@ -262,6 +467,25 @@ Follow this checklist to ensure successful setup:
 
 ## 🧑‍💻 Login & Logout Guide (for All Users)
 
+### 🔐 Demo Accounts (RBAC) — Email + Password
+
+For class demos requiring strict role separation (RBAC), you can enable simple email/password demo accounts. Set these environment variables and use the "Demo Accounts" tab on the login page:
+
+```env
+# Optional demo users (mutually exclusive roles)
+DEMO_ADMIN_EMAIL=admin@example.com
+DEMO_ADMIN_PASSWORD=adminpass
+DEMO_ANALYST_EMAIL=analyst@example.com
+DEMO_ANALYST_PASSWORD=analystpass
+DEMO_OPERATOR_EMAIL=operator@example.com
+DEMO_OPERATOR_PASSWORD=operatorpass
+```
+
+Notes:
+- Each demo account is permanently mapped to its role (ADMIN, ANALYST, OPERATOR). The server issues a JWT containing this role.
+- Server-side RBAC is enforced on protected APIs; page routing enforces role-specific dashboards.
+- The passwordless flow below still works in parallel; choose whichever is needed for your demo.
+
 ### 🔐 Login
 
 The Logistics Defense AI Platform uses a **passwordless authentication system**, meaning users can log in securely using their **email** or **phone number** — no password required.
@@ -349,6 +573,13 @@ Ensure your `.env` file contains:
 DATABASE_URL="file:./prisma/dev.db"
 NEXTAUTH_SECRET="your-secure-random-secret-key"
 OPENROUTER_API_KEY="your-openrouter-api-key"
+# Optional: demo RBAC login accounts
+DEMO_ADMIN_EMAIL="admin@example.com"
+DEMO_ADMIN_PASSWORD="adminpass"
+DEMO_ANALYST_EMAIL="analyst@example.com"
+DEMO_ANALYST_PASSWORD="analystpass"
+DEMO_OPERATOR_EMAIL="operator@example.com"
+DEMO_OPERATOR_PASSWORD="operatorpass"
 ```
 
 Generate a secure `NEXTAUTH_SECRET`:
@@ -512,6 +743,44 @@ npm run dev
 ### Deployment Platforms
 - [Vercel Deployment Guide](https://vercel.com/docs) - Serverless hosting
 - [Neon Database](https://neon.tech/docs) - Serverless PostgreSQL
+- [Render.com Guide](./RENDER_DEPLOYMENT.md) - **Full production deployment with PostgreSQL**
+
+## 🌐 Production Deployment
+
+### Deploy to Render.com (Recommended)
+
+This project is configured for one-click deployment to Render.com with PostgreSQL database:
+
+1. **Push to GitHub**: Ensure your code is in a GitHub repository
+2. **Create Blueprint**: In Render dashboard, create a new Blueprint
+3. **Configure Environment**: Add your `OPENROUTER_API_KEY`
+4. **Deploy**: Render automatically builds, migrates, and starts your app
+
+📖 **See [RENDER_DEPLOYMENT.md](./RENDER_DEPLOYMENT.md) for complete step-by-step instructions**
+
+### Key Features for Production
+- ✅ PostgreSQL database (replaces SQLite)
+- ✅ Automatic migrations on deploy
+- ✅ Secure environment variable management
+- ✅ Health check endpoint (`/api/health`)
+- ✅ Simulated attacks work via API
+- ✅ Agent AI analysis fully functional
+
+### Local Development vs Production
+
+**Development (SQLite)**:
+```bash
+DATABASE_URL="file:./prisma/dev.db"
+npm run dev
+```
+
+**Production (PostgreSQL on Render)**:
+```bash
+DATABASE_URL="postgresql://..." # Auto-configured by Render
+npm start
+```
+
+The schema automatically supports both databases with minimal changes.
 
 ---
 

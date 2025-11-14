@@ -1,6 +1,8 @@
 // app/dashboard/analyst/page.tsx
 import AlertFeed from '@/components/AlertFeed';
 import RecentAnalyses from '@/components/RecentAnalyses';
+import ShipmentMap from '@/components/ShipmentMap';
+import RiskyRegions from '@/components/RiskyRegions';
 import LogoutButton from '@/components/LogoutButton';
 
 export const dynamic = 'force-dynamic';
@@ -19,16 +21,24 @@ export default function AnalystHome() {
         <LogoutButton />
       </div>
 
-      {/* Alerts stream */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-medium">Recent Alerts</h2>
-        <AlertFeed />
-      </div>
-
-      {/* AI analyses */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-medium">Recent Analyses</h2>
-        <RecentAnalyses />
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="space-y-4 xl:col-span-2">
+          {/* Alerts stream */}
+          <div className="space-y-4">
+            <h2 className="text-lg font-medium">Recent Alerts</h2>
+            <AlertFeed />
+          </div>
+          {/* AI analyses */}
+          <div className="space-y-4">
+            <h2 className="text-lg font-medium">Recent Analyses</h2>
+            <RecentAnalyses />
+          </div>
+        </div>
+        <div className="space-y-4">
+          <h2 className="text-lg font-medium">Map & Risk</h2>
+          <ShipmentMap />
+          <RiskyRegions />
+        </div>
       </div>
     </div>
   );

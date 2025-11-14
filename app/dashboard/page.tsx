@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import Navigation from "@/components/Navigation";
 import AgentToggle from "@/components/AgentToggle";
 import ShipmentTable from "@/components/ShipmentTable";
@@ -8,6 +9,9 @@ import RecentAnalyses from "@/components/RecentAnalyses";
 import SimulateAttackButton from "@/components/SimulateAttackButton";
 import AgentStatusMonitor from "@/components/AgentStatusMonitor";
 import DelayPredictionChart from "@/components/DelayPredictionChart";
+import RoutePerformance from "@/components/RoutePerformance";
+import ShipmentMap from "@/components/ShipmentMap";
+import RiskyRegions from "@/components/RiskyRegions";
 import axios from "axios";
 
 // For demo purposes, using a static user ID
@@ -18,8 +22,42 @@ export default function Dashboard() {
   const [agentActive, setAgentActive] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
+  // NEW: read anomaly summary pushed by /database page (localStorage)
+  const [dbAnomalyCount, setDbAnomalyCount] = useState<number | null>(null);
+  const [dbLastScan, setDbLastScan] = useState<string>("—");
+
   useEffect(() => {
     fetchAgentStatus();
+  }, []);
+
+  useEffect(() => {
+    // poll localStorage for latest anomaly summary every 2s
+    const read = () => {
+      try {
+        const cnt = localStorage.getItem("db_last_anomaly_count");
+        const ts = localStorage.getItem("db_last_scan_time");
+        if (cnt !== null && !Number.isNaN(Number(cnt))) {
+          setDbAnomalyCount(Number(cnt));
+        } else {
+          setDbAnomalyCount(null);
+        }
+        if (ts) {
+          const d = new Date(Number(ts));
+          if (!Number.isNaN(d.getTime())) {
+            setDbLastScan(d.toLocaleTimeString());
+          } else {
+            setDbLastScan("—");
+          }
+        } else {
+          setDbLastScan("—");
+        }
+      } catch {
+        // ignore
+      }
+    };
+    read();
+    const id = setInterval(read, 2000);
+    return () => clearInterval(id);
   }, []);
 
   const fetchAgentStatus = async () => {
@@ -41,6 +79,7 @@ export default function Dashboard() {
     // Force refresh of child components by updating the key
     setRefreshKey(prev => prev + 1);
   };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -75,6 +114,22 @@ export default function Dashboard() {
             </div>
           </div>
 
+          {/* NEW: Database & Anomaly Console entry point */}
+          <section className="rounded-2xl border bg-white p-6 flex flex-col lg:flex-row gap-4 lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold">Database & Anomaly Console</h2>
+              <p className="text-gray-600">
+                Open the mock user database and run the AI agent’s anomaly detection. Results surface back here automatically.
+              </p>
+            </div>
+            <Link
+              href="/database"
+              className="inline-flex items-center rounded-lg bg-blue-600 px-5 py-3 text-white font-medium hover:bg-blue-700 transition w-full lg:w-auto justify-center"
+            >
+              Open Database Console →
+            </Link>
+          </section>
+
           {/* Agent Status Monitor */}
           <AgentStatusMonitor userId={DEMO_USER_ID} agentActive={agentActive} />
 
@@ -99,23 +154,22 @@ export default function Dashboard() {
             </div>
           </div>
 
+          {/* Live Map & Regional Risk */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+              <ShipmentMap refreshTrigger={refreshKey} />
+            </div>
+            <div>
+              <RiskyRegions />
+            </div>
+          </div>
+
           {/* Predictive Analytics Section */}
           <div id="predictive" className="grid grid-cols-1 lg:grid-cols-2 gap-8 scroll-mt-20">
             <DelayPredictionChart refreshTrigger={refreshKey} />
             
-            {/* Additional Analytics Placeholder */}
-            <div className="card p-6">
-              <h3 className="text-lg font-semibold mb-4 text-gray-900 font-['Rajdhani']">
-                Route Performance
-              </h3>
-              <div className="text-center py-8">
-                <div className="text-4xl mb-2">🗺️</div>
-                <p className="text-gray-700">Route analytics coming soon</p>
-                <p className="text-sm text-gray-600 mt-1">
-                  Performance metrics by route and driver
-                </p>
-              </div>
-            </div>
+            {/* Route Performance */}
+            <RoutePerformance />
           </div>
 
           {/* Status Cards */}
@@ -172,7 +226,7 @@ export default function Dashboard() {
               <p>1. <strong>Enable the AI Agent</strong> using the toggle above to start monitoring logistics data</p>
               <p>2. <strong>Run the simulation script</strong> to generate test shipment data: <code className="bg-gray-100 text-gray-800 px-2 py-1 rounded font-mono">npm run simulate</code></p>
               <p>3. <strong>Monitor alerts</strong> in the right panel for detected anomalies</p>
-              <p>4. <strong>Configure your environment</strong> with a PostgreSQL database and OpenRouter API key</p>
+              <p>4. <strong>Open the Database Console</strong> to run AI anomaly scans on user access events</p>
             </div>
           </div>
         </div>

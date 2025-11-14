@@ -2,11 +2,17 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import axios from "axios";
 import { logActivity, updateActivity } from "@/lib/agentActivity";
+import { getSessionFromRequest, requireRole } from "@/lib/auth";
 
 // Fallback deliberately disabled: threats must be determined by the external AI agent only.
 
 export async function POST(req: Request) {
   try {
+    const session = await getSessionFromRequest(req);
+    const guard = requireRole(session, ["ANALYST", "ADMIN"]);
+    if (!guard.ok) {
+      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
+    }
     const {
       routeId,
       expectedETA,
@@ -95,6 +101,21 @@ export async function POST(req: Request) {
     console.warn('[AI] Could not fetch feedback for learning:', err instanceof Error ? err.message : err);
   }
 
+  // Optional: include a tiny regional risk context (top 3)
+  let regionalContext = '';
+  try {
+    const topRegions = await prisma.regionalRiskProfile.findMany({
+      orderBy: [{ avgRisk: 'desc' }, { totalAnalyses: 'desc' }],
+      take: 3
+    } as any);
+    if (topRegions && topRegions.length > 0) {
+      regionalContext = '\n\nREGIONAL RISK CONTEXT (top historical):\n' + topRegions.map(r => `- ${r.regionKey} (avg ${Math.round(r.avgRisk)}%, n=${r.totalAnalyses})`).join('\n');
+      console.log(`[AI] Enriching prompt with ${topRegions.length} regional risk profiles`);
+    }
+  } catch (e) {
+    console.warn('[AI] Could not fetch regional risk context');
+  }
+
   const prompt = `LOGISTICS SECURITY THREAT ANALYSIS
 
 Analyze this shipment and assign a risk score (0-100) based on threat indicators:
@@ -148,6 +169,7 @@ Identify the most likely threat based on patterns:
 - CYBER_ATTACK: System anomalies, data inconsistencies
 - NORMAL_OPERATION: No threats detected
 ${learningContext}
+${regionalContext}
 
 PRIORITY NOTE:
 - The shipment's cargo value should only slightly influence risk priority. High-value cargo may nudge risk a bit higher for the same signals, and low-value cargo may nudge slightly lower. Do not exceed ±5 points due to value alone.
@@ -602,6 +624,55 @@ Return JSON only:
       });
     } catch (err) {
       console.warn('[AI] Failed to persist Analysis record:', err instanceof Error ? err.message : err);
+    }
+
+    // Update regional risk profiles for origin/destination/local tile
+    try {
+      const risk = Number(result.riskScore) || 0;
+      const severity = risk > 70 ? 'high' : risk > 40 ? 'medium' : 'low';
+      const keys: string[] = [];
+      if (origin && typeof origin === 'string') keys.push(`city:${origin}`);
+      if (destination && typeof destination === 'string') keys.push(`city:${destination}`);
+      if (typeof lastKnownLat === 'number' && typeof lastKnownLng === 'number') {
+        // Coarse tile ~0.5° for regional bucket
+        const lat = Math.round(lastKnownLat * 2) / 2;
+        const lng = Math.round(lastKnownLng * 2) / 2;
+        keys.push(`tile:${lat.toFixed(1)},${lng.toFixed(1)}`);
+      }
+      // Deduplicate keys
+      const regionKeys = Array.from(new Set(keys));
+      for (const rk of regionKeys) {
+        const existing = await prisma.regionalRiskProfile.findUnique({ where: { regionKey: rk } });
+        if (!existing) {
+          await prisma.regionalRiskProfile.create({
+            data: {
+              regionKey: rk,
+              totalAnalyses: 1,
+              highCount: severity === 'high' ? 1 : 0,
+              mediumCount: severity === 'medium' ? 1 : 0,
+              lowCount: severity === 'low' ? 1 : 0,
+              avgRisk: risk,
+              lastRiskScore: risk
+            }
+          });
+        } else {
+          const newTotal = existing.totalAnalyses + 1;
+          const sum = existing.avgRisk * existing.totalAnalyses + risk;
+          await prisma.regionalRiskProfile.update({
+            where: { regionKey: rk },
+            data: {
+              totalAnalyses: { increment: 1 },
+              highCount: { increment: severity === 'high' ? 1 : 0 },
+              mediumCount: { increment: severity === 'medium' ? 1 : 0 },
+              lowCount: { increment: severity === 'low' ? 1 : 0 },
+              avgRisk: sum / newTotal,
+              lastRiskScore: risk
+            }
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('[AI] Failed to update regional risk profiles:', err instanceof Error ? err.message : err);
     }
 
     // Save alert if risk score is significant
