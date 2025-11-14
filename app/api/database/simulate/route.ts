@@ -35,13 +35,14 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
-      userCount = 25,
-      loginCount = 50,
-      accessCount = 100,
+      userCount = 5,        // Reduced from 25 - real logins tracked separately
+      loginCount = 10,       // Reduced from 50 - real logins tracked separately
+      accessCount = 20,      // Reduced from 100 - minimal synthetic data
       runAgent = false,
     } = body;
 
-    console.log("[DATABASE/SIMULATE] Starting simulation...");
+    console.log("[DATABASE/SIMULATE] Starting simulation (minimal synthetic data)...");
+    console.log("[DATABASE/SIMULATE] Note: Real login attempts are tracked automatically via auth endpoints");
 
     // Create users
     const users = await Promise.all(

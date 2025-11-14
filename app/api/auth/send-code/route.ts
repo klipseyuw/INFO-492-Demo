@@ -1,6 +1,8 @@
 // app/api/auth/send-code/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { trackLoginAttempt } from '@/lib/databaseMonitoring';
+import { getLocationFromIP } from '@/lib/ipLocation';
 
 type Role = 'ANALYST' | 'OPERATOR' | 'ADMIN';
 
@@ -80,6 +82,27 @@ export async function POST(request: NextRequest) {
     );
 
     if (!match) {
+      // Track failed login attempt
+      const location = await getLocationFromIP(ip);
+      const userAgent = request.headers.get('user-agent') || undefined;
+      
+      // Try to find existing user for tracking (won't create if doesn't exist)
+      const existingUser = await prisma.user.findFirst({
+        where: { email },
+        select: { role: true },
+      });
+      
+      if (existingUser) {
+        await trackLoginAttempt({
+          email,
+          role: existingUser.role as Role,
+          success: false,
+          ip,
+          location,
+          userAgent,
+        });
+      }
+      
       return NextResponse.json(
         { success: false, error: 'Invalid email or password' },
         { status: 401 }

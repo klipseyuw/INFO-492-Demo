@@ -10,6 +10,7 @@
     "lint": "eslint",
     "simulate": "npx tsx scripts/simulateRoutes.ts",
     "simulate:single": "npx tsx scripts/simulateRoutes.ts single",
+    "simulate:continuous": "npx tsx scripts/continuousSimulation.ts",
     "db:seed-agent": "node scripts/seed-db-agent.js",
     "db:simulate-agent": "node scripts/simulate-db-agent.js",
     "db:migrate": "npx prisma migrate dev",

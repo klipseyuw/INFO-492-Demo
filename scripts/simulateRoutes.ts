@@ -5,7 +5,44 @@ import { config } from "dotenv";
 config();
 
 const API_BASE_URL = process.env.NEXTAUTH_URL || "http://localhost:3000";
-const DEMO_USER_ID = "user-1";
+const DEMO_USER_ID = process.env.SIM_USER_ID || "user-1";
+
+// Auth token cache
+let authCookie: string | null = null;
+
+/**
+ * Authenticate and get session cookie
+ */
+async function authenticate(): Promise<string> {
+  if (authCookie) return authCookie;
+
+  try {
+    // Try demo admin login if configured
+    const demoEmail = process.env.DEMO_ADMIN_EMAIL;
+    const demoPassword = process.env.DEMO_ADMIN_PASSWORD;
+
+    if (demoEmail && demoPassword) {
+      const response = await axios.post(`${API_BASE_URL}/api/auth/login`, {
+        email: demoEmail,
+        password: demoPassword,
+      });
+
+      // Extract cookie from response headers
+      const setCookie = response.headers['set-cookie'];
+      if (setCookie && setCookie.length > 0) {
+        authCookie = setCookie[0].split(';')[0]; // Get just the cookie value
+        console.log("✓ Authenticated as demo admin");
+        return authCookie;
+      }
+    }
+
+    console.warn("⚠️  No authentication credentials configured");
+    return "";
+  } catch (error) {
+    console.error("✗ Authentication failed:", error instanceof Error ? error.message : error);
+    return "";
+  }
+}
 
 // Sample driver names for realistic simulation
 const DRIVERS = [
@@ -129,7 +166,15 @@ function generateShipmentData(): ShipmentData {
 
 async function createShipment(shipmentData: ShipmentData): Promise<boolean> {
   try {
-    const response = await axios.post(`${API_BASE_URL}/api/shipments`, shipmentData);
+    const cookie = await authenticate();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (cookie) {
+      headers['Cookie'] = cookie;
+    }
+
+    const response = await axios.post(`${API_BASE_URL}/api/shipments`, shipmentData, { headers });
     console.log(`✓ Created shipment: ${shipmentData.routeId} (${shipmentData.driverName})`);
     return response.data.success;
   } catch (error) {
@@ -140,10 +185,18 @@ async function createShipment(shipmentData: ShipmentData): Promise<boolean> {
 
 async function analyzeWithAI(shipmentData: ShipmentData): Promise<void> {
   try {
+    const cookie = await authenticate();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (cookie) {
+      headers['Cookie'] = cookie;
+    }
+
     const response = await axios.post(`${API_BASE_URL}/api/ai`, {
       ...shipmentData,
       userId: DEMO_USER_ID
-    });
+    }, { headers });
     
     if (response.data.analyzed) {
       const risk = response.data.riskScore || 0;
@@ -178,18 +231,18 @@ async function simulateRoute(): Promise<void> {
 }
 
 async function runContinuousSimulation(): Promise<void> {
-  console.log("🚛 Starting Logistics Defense AI Simulation");
+  console.log("🚚 Starting Logistics Defense AI Simulation");
   console.log(`📊 Connecting to API at: ${API_BASE_URL}`);
   console.log("👤 Demo User ID:", DEMO_USER_ID);
-  console.log("🔄 Generating new routes every 60 seconds...\n");
+  console.log("🔄 Generating new routes every 20 seconds...\n");
   
   // Initial simulation
   await simulateRoute();
   
-  // Continue simulation every 60 seconds
+  // Continue simulation every 20 seconds
   setInterval(async () => {
     await simulateRoute();
-  }, 60000); // 60 seconds
+  }, 20000); // 20 seconds
 }
 
 async function runSingleSimulation(): Promise<void> {

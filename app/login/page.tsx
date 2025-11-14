@@ -232,16 +232,6 @@ function LoginInner() {
                 </button>
               </form>
             )}
-
-            {/* Info Box */}
-            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <h4 className="text-sm font-semibold text-blue-900 mb-2">🔐 Two-Factor Authentication</h4>
-              <ul className="text-xs text-blue-800 space-y-1">
-                <li>• 6-digit code expires in 5 minutes</li>
-                <li>• Your role is determined by your credentials</li>
-                <li>• Check browser console for test code (dev mode)</li>
-              </ul>
-            </div>
           </div>
         </div>
 

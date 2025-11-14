@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 export async function GET(request: NextRequest) {
   try {
     // Get token from cookie
-    const token = request.cookies.get('auth_token')?.value;
+    const token = request.cookies.get('auth')?.value;
 
     if (!token) {
       return NextResponse.json(
@@ -21,14 +21,24 @@ export async function GET(request: NextRequest) {
 
     const { payload } = await jwtVerify(token, secret);
 
-    // Get user from database
+    // Get user from database (JWT uses 'sub' field for user ID)
+    const userId = payload.sub as string;
+    
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid token' },
+        { status: 401 }
+      );
+    }
+
     const user = await prisma.user.findUnique({
-      where: { id: payload.userId as string },
+      where: { id: userId },
       select: {
         id: true,
         email: true,
         phone: true,
         name: true,
+        role: true,
         agentActive: true,
         createdAt: true
       }

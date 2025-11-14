@@ -120,35 +120,6 @@ export default function SimulateAttackButton({ userId, agentActive = false, onAt
           Safe testing only
         </div>
       </div>
-
-      <div className="space-y-3 mt-4 text-sm leading-relaxed">
-        <div>
-          <p className="font-semibold text-blue-700 flex items-center gap-1">
-            🧠 Scenarios include:
-          </p>
-          <p className="pl-6 text-gray-700">
-            Route manipulation, ETA tampering, cargo theft, cyber attacks, driver impersonation
-          </p>
-        </div>
-
-        <div>
-          <p className="font-semibold text-green-700 flex items-center gap-1">
-            🟢 With Agent Active:
-          </p>
-          <p className="pl-6 text-gray-700">
-            Creates suspicious shipment → Defense agent detects threat → Alert generated with recommendations
-          </p>
-        </div>
-
-        <div>
-          <p className="font-semibold text-red-700 flex items-center gap-1">
-            🔴 With Agent Inactive:
-          </p>
-          <p className="pl-6 text-gray-700">
-            Creates suspicious shipment → No detection → Threat goes unnoticed
-          </p>
-        </div>
-      </div>
     </div>
   );
 }

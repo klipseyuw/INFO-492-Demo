@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Navigation from "@/components/Navigation";
 import AgentToggle from "@/components/AgentToggle";
 import ShipmentTable from "@/components/ShipmentTable";
 import AlertFeed from "@/components/AlertFeed";
@@ -12,23 +11,31 @@ import DelayPredictionChart from "@/components/DelayPredictionChart";
 import RoutePerformance from "@/components/RoutePerformance";
 import ShipmentMap from "@/components/ShipmentMap";
 import RiskyRegions from "@/components/RiskyRegions";
+import ContinuousSimToggle from "@/components/ContinuousSimToggle";
+import AIAccuracyTracker from "@/components/AIAccuracyTracker";
+import LogoutButton from "@/components/LogoutButton";
 import axios from "axios";
-
-// For demo purposes, using a static user ID
-// In production, this would come from authentication
-const DEMO_USER_ID = "user-1";
 
 export default function Dashboard() {
   const [agentActive, setAgentActive] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string>("user-1"); // Default fallback
+  const [roleLoading, setRoleLoading] = useState(true);
 
   // NEW: read anomaly summary pushed by /database page (localStorage)
   const [dbAnomalyCount, setDbAnomalyCount] = useState<number | null>(null);
   const [dbLastScan, setDbLastScan] = useState<string>("—");
 
   useEffect(() => {
-    fetchAgentStatus();
+    fetchUserRole();
   }, []);
+
+  useEffect(() => {
+    if (userId) {
+      fetchAgentStatus();
+    }
+  }, [userId]);
 
   useEffect(() => {
     // poll localStorage for latest anomaly summary every 2s
@@ -62,12 +69,27 @@ export default function Dashboard() {
 
   const fetchAgentStatus = async () => {
     try {
-      const response = await axios.get(`/api/agent/toggle?userId=${DEMO_USER_ID}`);
+      const response = await axios.get(`/api/agent/toggle?userId=${userId}`);
       if (response.data.success) {
         setAgentActive(response.data.user.agentActive);
       }
     } catch (error) {
       console.error("Failed to fetch agent status:", error);
+    }
+  };
+
+  const fetchUserRole = async () => {
+    try {
+      const response = await axios.get("/api/auth/me");
+      if (response.data.user) {
+        setUserRole(response.data.user.role);
+        setUserId(response.data.user.id); // Set the authenticated user's ID
+        console.log("[Dashboard] User role:", response.data.user.role, "ID:", response.data.user.id);
+      }
+    } catch (error) {
+      console.error("Failed to fetch user role:", error);
+    } finally {
+      setRoleLoading(false);
     }
   };
 
@@ -82,32 +104,26 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header id="dashboard" className="relative bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 sm:px-8 py-8">
-          <div>
-            <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 tracking-tight">
-              Logistics Defense <span className="text-blue-600">AI Platform</span>
-            </h1>
-            <p className="text-gray-700 text-base sm:text-lg mt-2">
-              Cybersecurity defense for warehouse logistics operations
-            </p>
-          </div>
-        </div>
-      </header>
-
-      {/* Navigation Bar */}
-      <Navigation />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-8">
+          {/* Top bar */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+              <p className="text-sm text-gray-600 mt-1">
+                Full system access, simulation control, and thesis validation
+              </p>
+            </div>
+            <LogoutButton />
+          </div>
           {/* Control Panel */}
           <div id="ai-agent" className="grid grid-cols-1 lg:grid-cols-2 gap-6 scroll-mt-20">
-            <AgentToggle userId={DEMO_USER_ID} onToggle={handleAgentToggle} />
+            <AgentToggle userId={userId} onToggle={handleAgentToggle} />
             <div id="simulation">
               <SimulateAttackButton 
-                userId={DEMO_USER_ID} 
+                userId={userId} 
                 agentActive={agentActive} 
                 onAttackSimulated={handleAttackSimulated}
               />
@@ -130,8 +146,21 @@ export default function Dashboard() {
             </Link>
           </section>
 
+          {/* Admin Controls - Continuous Simulation & Thesis Validation */}
+          {roleLoading ? (
+            <div className="bg-gray-100 p-6 rounded-lg animate-pulse">
+              <div className="h-4 bg-gray-300 rounded w-1/3 mb-2"></div>
+              <div className="h-3 bg-gray-300 rounded w-1/2"></div>
+            </div>
+          ) : userRole === "ADMIN" ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <ContinuousSimToggle />
+              <AIAccuracyTracker />
+            </div>
+          ) : null}
+
           {/* Agent Status Monitor */}
-          <AgentStatusMonitor userId={DEMO_USER_ID} agentActive={agentActive} />
+          <AgentStatusMonitor userId={userId} agentActive={agentActive} />
 
           {/* Dashboard Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

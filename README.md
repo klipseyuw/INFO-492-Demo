@@ -4,6 +4,51 @@
 
 A cutting-edge cybersecurity defense platform for warehouse logistics operations, utilizing AI-powered anomaly detection with **reinforcement learning** to identify route manipulation, data tampering, and cyber-physical disruptions in real-time.
 
+## 🎓 Continuous Operation Architecture
+
+This system is designed for autonomous, continuous operation in alignment with academic requirements for self-contained agentic experiments:
+
+**Hosted Environment**: Production deployment on Render.com with PostgreSQL database
+- ✅ 24/7 uptime with automatic health checks and restarts
+- ✅ Production-grade infrastructure (superior to flaky VM environments)
+- ✅ Persistent database for long-term learning and metrics collection
+
+**Synthetic Industry Simulation**: Continuous logistics shipment generation
+- ✅ Admin-controlled toggle for continuous simulation (20-second intervals)
+- ✅ Realistic threat scenarios (route manipulation, GPS spoofing, cargo tampering)
+- ✅ Configurable via `/api/simulation/toggle` (Admin only)
+- ✅ **Automatic**: Runs in-process when toggled on (no separate terminal needed)
+
+**Autonomous Agentic System**: AI agent runs continuously when enabled
+- ✅ Real-time threat detection on every shipment
+- ✅ Few-shot learning from human feedback
+- ✅ Autonomous decision-making (risk scoring, alert generation)
+- ✅ Graceful degradation with local fallback
+
+**Thesis Validation Framework**: Autonomous metric collection over N time periods
+- ✅ Hypothesis: "AI agents can autonomously detect supply chain threats with >70% accuracy by learning from human feedback over continuous operation"
+- ✅ Automated validation endpoint: `/api/metrics/thesis-validation`
+- ✅ Returns TRUE/FALSE/PENDING based on accuracy threshold (≥70% with ≥10 feedback samples)
+- ✅ Admin dashboard displays real-time validation status
+
+**To start continuous operation**:
+```bash
+# Start web server (simulation runs automatically when toggled)
+npm run dev
+
+# Admin dashboard: Enable continuous simulation toggle
+# Navigate to http://localhost:3000/dashboard (login as ADMIN)
+# Toggle "Continuous Simulation" switch to Active
+# Simulation will start automatically and persist across server restarts
+```
+
+**Thesis validation metrics** (accessible at `/api/metrics/thesis-validation`):
+- Total analyses run
+- Alerts generated
+- Human feedback received
+- Accuracy rate (%)
+- Validation status: TRUE | FALSE | PENDING
+
 ## ✨ Key Features at a Glance
 
 - 🤖 **AI-Powered Threat Detection** with few-shot reinforcement learning
@@ -221,6 +266,70 @@ The AI agent learns from human feedback using **few-shot learning** (no custom m
 - Provide detailed notes explaining why predictions were wrong
 - Focus on correcting high-severity alerts first
 - Review learning examples in database via Prisma Studio
+
+### 🔄 Continuous Simulation System
+
+**Admin-Controlled In-Process Simulation** for autonomous agent testing:
+
+- **Toggle Control**: Admin users can enable/disable continuous simulation from the dashboard
+- **20-Second Intervals**: Generates realistic shipment scenarios automatically
+- **Threat Distribution**: 60% normal, 25% delays, 12% threats, 3% critical attacks
+- **Database-Driven**: Toggle state stored in `User.continuousSimActive` field
+- **In-Process**: Runs automatically within the Next.js server (no separate terminal)
+- **Auto-Restore**: Automatically resumes when server restarts if previously enabled
+- **Seamless Integration**: Works alongside manual simulations and real data
+
+**Usage**:
+```bash
+# Start the web server
+npm run dev
+
+# In dashboard (as ADMIN):
+# Toggle "Continuous Simulation" switch to Active
+# Simulation begins immediately and runs every 20 seconds
+# Toggle Off to pause
+# State persists across server restarts
+```
+
+**Technical Details**:
+- API endpoints: `/api/simulation/toggle` (POST), `/api/simulation/status` (GET)
+- Only ADMIN role can toggle simulation
+- Simulation manager is a singleton that runs in the Node.js process
+- Automatically initializes on server startup by checking database state
+- Logs all simulation activity to console
+- Optional external script: `npm run simulate:continuous` (legacy, not needed)
+
+### 📈 Thesis Validation Metrics
+
+**Autonomous Validation Endpoint** (`/api/metrics/thesis-validation`):
+
+**Hypothesis**: "AI agents can autonomously detect supply chain threats with >70% accuracy by learning from human feedback over continuous operation"
+
+**Metrics Collected**:
+- Total analyses performed
+- Alerts created
+- Human feedback received
+- Accuracy rate (% of accurate predictions)
+- Average risk score
+- Severity distribution (high/medium/low)
+
+**Validation Logic**:
+- **TRUE**: ≥70% accuracy with ≥10 feedback samples
+- **FALSE**: <70% accuracy with ≥10 feedback samples
+- **PENDING**: <10 feedback samples (insufficient data)
+
+**Admin Dashboard Panel**:
+- Real-time validation status with color-coded badge
+- Progress tracker (X/10 feedback samples)
+- Detailed metrics grid
+- Severity distribution visualization
+- Auto-refreshes every 30 seconds
+
+**Query Parameters**:
+```bash
+GET /api/metrics/thesis-validation?days=7  # Last 7 days (default)
+GET /api/metrics/thesis-validation?days=30 # Last 30 days
+```
 
 # 📊 AI Evaluation Metrics
 

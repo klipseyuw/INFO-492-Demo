@@ -153,9 +153,9 @@ export default function DatabaseConsole() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userCount: 25,
-          loginCount: 50,
-          accessCount: 100,
+          userCount: 5,    // Minimal synthetic users
+          loginCount: 10,   // Minimal synthetic logins
+          accessCount: 20,  // Minimal synthetic access events
           runAgent: true,
         }),
       });
@@ -183,8 +183,8 @@ export default function DatabaseConsole() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userCount: 0,
-          loginCount: 5,
-          accessCount: 10,
+          loginCount: 2,    // Reduced - real logins tracked automatically
+          accessCount: 5,   // Reduced synthetic access events
           runAgent: true,
         }),
       });
@@ -302,12 +302,13 @@ export default function DatabaseConsole() {
             <div className="px-6 py-4 border-b">
               <h3 className="text-lg font-semibold">Users</h3>
               <p className="text-sm text-gray-600">Real-time database user monitoring. Data stored in PostgreSQL.</p>
+              <p className="text-xs text-green-600 mt-1">✓ Real login attempts tracked automatically via auth system</p>
             </div>
 
             {users.length === 0 ? (
               <div className="p-12 text-center text-gray-500">
                 <p className="text-lg mb-2">No users found</p>
-                <p className="text-sm">Click <b>Simulate Data</b> to generate sample users and activity.</p>
+                <p className="text-sm">Login to the system to see your real login activity, or click <b>Simulate Data</b> for minimal demo data.</p>
               </div>
             ) : (
               <>

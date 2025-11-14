@@ -107,7 +107,7 @@ export async function POST(req: Request) {
     const topRegions = await prisma.regionalRiskProfile.findMany({
       orderBy: [{ avgRisk: 'desc' }, { totalAnalyses: 'desc' }],
       take: 3
-    } as any);
+    });
     if (topRegions && topRegions.length > 0) {
       regionalContext = '\n\nREGIONAL RISK CONTEXT (top historical):\n' + topRegions.map(r => `- ${r.regionKey} (avg ${Math.round(r.avgRisk)}%, n=${r.totalAnalyses})`).join('\n');
       console.log(`[AI] Enriching prompt with ${topRegions.length} regional risk profiles`);
@@ -557,7 +557,7 @@ Return JSON only:
       result = {
         riskScore: fallbackRiskScore,
         alertType: fallbackAlertType,
-        description: fallbackDescription + " (AI analysis unavailable - using deterministic assessment)",
+        description: fallbackDescription,
         operatorSummary: `Fallback analysis: ${fallbackAlertType.replace(/_/g, ' ').toLowerCase()}`,
         recommendedActions: fallbackActions.length > 0 ? fallbackActions : ["Monitor shipment"],
         evidence: fallbackEvidence.length > 0 ? fallbackEvidence : ["Automated analysis"],

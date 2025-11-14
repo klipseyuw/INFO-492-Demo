@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { SignJWT } from "jose";
+import { trackLoginAttempt } from "@/lib/databaseMonitoring";
+import { getLocationFromIP } from "@/lib/ipLocation";
 
 type Role = "ANALYST" | "OPERATOR" | "ADMIN";
 
@@ -51,7 +53,25 @@ export async function POST(req: NextRequest) {
     const match = user.verificationCodes.find(
       (vc) => vc.code === String(code) && new Date(vc.expiresAt) > now
     );
+    
+    // Get IP and location for tracking
+    const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
+    const userAgent = req.headers.get("user-agent") || undefined;
+    const location = await getLocationFromIP(ip);
+    
     if (!match) {
+      // Track failed login attempt
+      if (user.email) {
+        await trackLoginAttempt({
+          email: user.email,
+          role: user.role as Role,
+          success: false,
+          ip,
+          location,
+          userAgent,
+        });
+      }
+      
       // cleanup any expired codes
       await prisma.verificationCode.deleteMany({
         where: { userId: user.id, expiresAt: { lt: now } },
@@ -67,6 +87,18 @@ export async function POST(req: NextRequest) {
 
     // Use the role already set during send-code (credentials validation)
     const effectiveRole: Role = user.role as Role;
+
+    // Track successful login attempt
+    if (user.email) {
+      await trackLoginAttempt({
+        email: user.email,
+        role: effectiveRole,
+        success: true,
+        ip,
+        location,
+        userAgent,
+      });
+    }
 
     // issue JWT with effectiveRole
     const secret = new TextEncoder().encode(
