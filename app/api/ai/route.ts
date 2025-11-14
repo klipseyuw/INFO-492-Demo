@@ -164,6 +164,9 @@ Return JSON only:
 
   interface AIResult { riskScore: number; alertType: string; description: string; operatorSummary?: string; recommendedActions?: string[]; evidence?: string[]; source?: string; usingFallback?: boolean; fallbackReason?: string; [k: string]: unknown }
   let result: AIResult;
+  
+  // System instruction to strongly bias models toward strict JSON-only output
+  const systemMessage = "You are a logistics security risk assessor. Respond with ONLY a single JSON object matching the provided schema. Do not include prose, code fences, or any extra text.";
 
     // Log start activity
     const started = logActivity({
@@ -206,7 +209,10 @@ Return JSON only:
       console.log("[AI] Making API call to:", "https://openrouter.ai/api/v1/chat/completions");
       console.log("[AI] Request payload:", JSON.stringify({
         model: modelName,
-        messages: [{ role: "user", content: prompt.substring(0, 200) + "..." }],
+        messages: [
+          { role: "system", content: systemMessage },
+          { role: "user", content: prompt.substring(0, 200) + "..." }
+        ],
         max_tokens: 200,
         temperature: 0.4,
         response_format: { type: "json_object" }
@@ -217,7 +223,10 @@ Return JSON only:
           "https://openrouter.ai/api/v1/chat/completions",
           {
             model: modelName,
-            messages: [{ role: "user", content: prompt }],
+            messages: [
+              { role: "system", content: systemMessage },
+              { role: "user", content: prompt }
+            ],
             max_tokens: 200,
             temperature: 0.4,
             response_format: { type: "json_object" }
@@ -247,7 +256,10 @@ Return JSON only:
           "https://openrouter.ai/api/v1/chat/completions",
           {
             model: modelName,
-            messages: [{ role: "user", content: prompt }],
+            messages: [
+              { role: "system", content: systemMessage },
+              { role: "user", content: prompt }
+            ],
             max_tokens: 200,
             temperature: 0.4
           },
@@ -367,6 +379,60 @@ Return JSON only:
               console.warn("[AI] Parsed partial fields from truncated JSON.");
             }
           }
+        }
+      }
+
+      // If still not parsed, attempt a compact JSON repair call using the model
+      if (!parsed) {
+        console.warn("[AI] Unable to parse JSON. Attempting structured JSON repair via model.");
+
+        // Build a tiny repair prompt to coerce a proper JSON object based on the analysis text
+        const repairPrompt = `Convert the following analysis into a STRICT JSON object with exactly these keys: \n\n{
+  "riskScore": <0-100 integer>,
+  "alertType": "<string>",
+  "description": "<string>",
+  "operatorSummary": "<string>",
+  "recommendedActions": ["<string>", "<string>", "<string>"],
+  "evidence": ["<string>", "<string>", "<string>"]
+}\n\nRules: \n- Respond with ONLY the JSON object.\n- If any field is missing in the text, infer reasonably.\n- Keep arrays to at most 3 concise items.\n\nShipment Context (for reference):\nRoute: ${routeId}\nDelay: ${Math.round(delayMinutes)} minutes\n${telemetryLines.join('\n')}\n\nPartial Analysis Text:\n${analysis}`;
+
+        try {
+          const repairRes = await axios.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            {
+              model: modelName,
+              messages: [
+                { role: "system", content: systemMessage },
+                { role: "user", content: repairPrompt }
+              ],
+              max_tokens: 180,
+              temperature: 0.2,
+              response_format: { type: "json_object" }
+            },
+            { headers: baseHeaders }
+          );
+
+          const rMsg = repairRes?.data?.choices?.[0]?.message;
+          let rContent = rMsg?.content || rMsg?.reasoning || rMsg?.reasoning_details?.[0]?.text || '';
+          if (typeof rContent === 'string' && rContent.trim()) {
+            // Reuse the same cleaning and balanced extraction
+            rContent = rContent.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+            rContent = rContent.replace(/<\|.*?\|>/g, '');
+            const repairedCandidate = findBalancedJson(rContent) ?? rContent;
+            try {
+              parsed = tryParseJson(repairedCandidate);
+            } catch (e3) {
+              const lastBrace2 = repairedCandidate.lastIndexOf('}');
+              if (lastBrace2 > 0) {
+                const trimmed2 = repairedCandidate.slice(0, lastBrace2 + 1);
+                try {
+                  parsed = tryParseJson(trimmed2);
+                } catch {}
+              }
+            }
+          }
+        } catch (repairErr) {
+          console.warn('[AI] JSON repair attempt failed:', repairErr instanceof Error ? repairErr.message : repairErr);
         }
       }
 
