@@ -107,6 +107,7 @@ model User {
   phone           String?            @unique
   name            String?
   agentActive     Boolean            @default(false)
+  continuousSimActive Boolean         @default(false)
   createdAt       DateTime           @default(now())
   verificationCodes VerificationCode[]
   role            Role               @default(ANALYST)

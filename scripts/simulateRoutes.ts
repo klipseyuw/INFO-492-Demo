@@ -89,44 +89,53 @@ function generateShipmentData(): ShipmentData {
   const expectedMinutes = Math.floor(Math.random() * 45) + 15;
   const expectedETA = new Date(now.getTime() + expectedMinutes * 60 * 1000);
   
-  // Simulate different scenarios
+  // Simulate different scenarios with stronger attack indicators
   const scenario = Math.random();
   let actualETA: Date | undefined;
   let routeStatus = "in-progress";
+  let gpsOnline = true;
+  let speedKph = Math.max(0, Math.round(80 + (Math.random() - 0.5) * 60));
   
-  if (scenario < 0.6) {
-    // 60% chance: Normal delivery with slight variation
+  if (scenario < 0.4) {
+    // 40% chance: Normal delivery with slight variation
     const variation = (Math.random() - 0.5) * 20; // ±10 minutes
     actualETA = new Date(expectedETA.getTime() + variation * 60 * 1000);
     routeStatus = Math.random() < 0.3 ? "delivered" : "in-progress";
-  } else if (scenario < 0.75) {
-    // 15% chance: Minor delay (15-30 minutes) 
+  } else if (scenario < 0.55) {
+    // 15% chance: Minor delay (15-30 minutes) with GPS issues
     const delay = Math.floor(Math.random() * 15) + 15;
     actualETA = new Date(expectedETA.getTime() + delay * 60 * 1000);
     routeStatus = "delayed";
-  } else if (scenario < 0.9) {
-    // 15% chance: Moderate delay (30-60 minutes)
+    gpsOnline = Math.random() < 0.3; // 70% chance GPS offline
+  } else if (scenario < 0.70) {
+    // 15% chance: Moderate delay (30-60 minutes) with speed anomalies
     const delay = Math.floor(Math.random() * 30) + 30;
     actualETA = new Date(expectedETA.getTime() + delay * 60 * 1000);
     routeStatus = "delayed";
-  } else if (scenario < 0.97) {
-    // 7% chance: Major delay - potential threat (60-120 minutes)
+    speedKph = Math.random() < 0.5 ? 0 : Math.round(Math.random() * 30); // Stopped or very slow
+  } else if (scenario < 0.85) {
+    // 15% chance: Major delay - potential cargo tampering (60-120 minutes, stopped)
     const delay = Math.floor(Math.random() * 60) + 60;
     actualETA = new Date(expectedETA.getTime() + delay * 60 * 1000);
     routeStatus = "delayed";
+    speedKph = 0; // Vehicle stopped
+    gpsOnline = Math.random() < 0.4; // 60% chance GPS offline
   } else {
-    // 3% chance: Critical threat - route manipulation (120+ minutes or early arrival)
+    // 15% chance: Critical threat - route manipulation/hijacking
     const isEarlyAttack = Math.random() < 0.3;
     if (isEarlyAttack) {
-      // Suspiciously early arrival (data tampering)
+      // Suspiciously early arrival (ETA fraud/data tampering)
       const earlyBy = Math.floor(Math.random() * 60) + 30;
       actualETA = new Date(expectedETA.getTime() - earlyBy * 60 * 1000);
       routeStatus = "suspicious";
+      gpsOnline = false; // GPS spoofing indicator
     } else {
-      // Major delay (route hijacking/manipulation)
+      // Severe delay with GPS offline (route hijacking/manipulation)
       const delay = Math.floor(Math.random() * 120) + 120;
       actualETA = new Date(expectedETA.getTime() + delay * 60 * 1000);
       routeStatus = "critical";
+      gpsOnline = false; // GPS disabled
+      speedKph = 0; // Not moving
     }
   }
 
@@ -140,11 +149,9 @@ function generateShipmentData(): ShipmentData {
   if (destination === origin) {
     destination = cities[(cities.indexOf(origin) + 3) % cities.length];
   }
-  const gpsOnline = Math.random() < 0.9; // 10% chance GPS offline
   const lastKnownLat = 45 + Math.random() * 5; // rough PNW band
   const lastKnownLng = -123 + Math.random() * 5;
   const lastKnownAt = new Date(now.getTime() - Math.floor(Math.random() * 60) * 60 * 1000).toISOString();
-  const speedKph = Math.max(0, Math.round(80 + (Math.random() - 0.5) * 60)); // 50-110 kph approx
   const headingDeg = Math.floor(Math.random() * 360);
 
   return {

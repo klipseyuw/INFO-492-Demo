@@ -15,10 +15,17 @@ export async function GET(req: Request) {
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
     // Gather metrics
-    const [totalAnalyses, alertsCreated, feedback, allAnalyses] = await Promise.all([
+    const [totalAnalyses, alertsCreated, alertFeedback, analysisFeedback, allAnalyses] = await Promise.all([
       prisma.analysis.count({ where: { createdAt: { gte: since } } }),
       prisma.alert.count({ where: { createdAt: { gte: since } } }),
       prisma.alertFeedback.findMany({
+        where: { createdAt: { gte: since } },
+        select: {
+          riskScoreAccurate: true,
+          attackTypeCorrect: true,
+        },
+      }),
+      prisma.analysisFeedback.findMany({
         where: { createdAt: { gte: since } },
         select: {
           riskScoreAccurate: true,
@@ -31,13 +38,14 @@ export async function GET(req: Request) {
       }),
     ]);
 
-    // Calculate accuracy
-    const accuratePredictions = feedback.filter(
+    // Calculate accuracy (combine both feedback sources)
+    const allFeedback = [...alertFeedback, ...analysisFeedback];
+    const accuratePredictions = allFeedback.filter(
       (f) => f.riskScoreAccurate && f.attackTypeCorrect
     ).length;
     const accuracyRate =
-      feedback.length > 0
-        ? ((accuratePredictions / feedback.length) * 100).toFixed(1)
+      allFeedback.length > 0
+        ? ((accuratePredictions / allFeedback.length) * 100).toFixed(1)
         : "N/A";
 
     // Severity distribution
@@ -64,7 +72,7 @@ export async function GET(req: Request) {
       metrics: {
         totalAnalyses,
         alertsCreated,
-        feedbackReceived: feedback.length,
+        feedbackReceived: allFeedback.length,
         accurateFeedback: accuratePredictions,
         accuracyRate: accuracyRate !== "N/A" ? `${accuracyRate}%` : "N/A",
         avgRiskScore: avgRiskScore,

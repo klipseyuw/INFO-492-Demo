@@ -11,6 +11,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Forbidden. Admin only." }, { status: 403 });
     }
 
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { active } = await req.json();
 
     if (typeof active !== "boolean") {
