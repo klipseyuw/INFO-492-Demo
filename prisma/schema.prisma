@@ -151,3 +151,61 @@ model RegionalRiskProfile {
   lastUpdated    DateTime @updatedAt
   createdAt      DateTime @default(now())
 }
+
+// Database monitoring models for Database Agent page
+model DatabaseUser {
+  id                    String                  @id @default(cuid())
+  name                  String
+  email                 String                  @unique
+  role                  Role
+  region                String                  // PNW, SW, NE, SE, MW
+  lastLoginIP           String?
+  lastLoginLocation     String?                 // "City, CC"
+  lastLoginAt           DateTime?
+  createdAt             DateTime                @default(now())
+  loginAttempts         LoginAttempt[]
+  accessEvents          DatabaseAccessEvent[]
+  anomalies             DatabaseAnomaly[]
+}
+
+model LoginAttempt {
+  id          String        @id @default(cuid())
+  userId      String
+  user        DatabaseUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  success     Boolean
+  ip          String
+  location    String        // "City, CC"
+  userAgent   String?
+  timestamp   DateTime      @default(now())
+  
+  @@index([userId, timestamp])
+}
+
+model DatabaseAccessEvent {
+  id          String        @id @default(cuid())
+  userId      String
+  user        DatabaseUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action      String        // SELECT, UPDATE, DELETE, EXPORT
+  tableName   String
+  estSizeMB   Float?
+  ip          String
+  location    String
+  timestamp   DateTime      @default(now())
+  
+  @@index([userId, timestamp])
+  @@index([tableName, timestamp])
+}
+
+model DatabaseAnomaly {
+  id          String        @id @default(cuid())
+  userId      String?
+  user        DatabaseUser? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String        // LOGIN_BRUTE_FORCE, NEW_GEO_LOGIN, RBAC_VIOLATION, EXPORT_SPIKE, SENSITIVE_READ_BURST
+  severity    String        // LOW, MEDIUM, HIGH, CRITICAL
+  description String
+  metadata    String?       // JSON for additional details
+  timestamp   DateTime      @default(now())
+  
+  @@index([userId, timestamp])
+  @@index([type, timestamp])
+}
