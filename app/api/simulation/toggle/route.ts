@@ -32,7 +32,7 @@ export async function POST(req: Request) {
     if (active) {
       simulationManager.start(session.sub, cookieHeader);
     } else {
-      simulationManager.stop();
+      await simulationManager.stop(session.sub);
     }
 
     console.log(`[Simulation] Continuous simulation ${active ? 'ENABLED' : 'DISABLED'} by admin ${session.sub}`);

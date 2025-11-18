@@ -5,7 +5,7 @@
 
 import axios from "axios";
 
-const SIMULATION_INTERVAL_MS = 20000; // 20 seconds
+const SIMULATION_INTERVAL_MS = 60000; // 60 seconds
 
 // Sample data for simulation
 const DRIVERS = [
@@ -42,6 +42,8 @@ class SimulationManager {
   private intervalId: NodeJS.Timeout | null = null;
   private apiBaseUrl: string;
   private initialized = false;
+  private startTime: Date | null = null;
+  private currentUserId: string | null = null;
 
   constructor() {
     this.apiBaseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
@@ -246,6 +248,16 @@ class SimulationManager {
       const { default: prisma } = await import("@/lib/prisma");
       const { logActivity } = await import("@/lib/agentActivity");
       
+      // Check if user exists and get agent status (like simulate-attack does)
+      const user = await prisma.user.findUnique({
+        where: { id: userId }
+      });
+
+      if (!user) {
+        console.error("[Simulation] User not found:", userId);
+        return;
+      }
+
       const shipmentData = this.generateShipmentData();
       
       // Create shipment directly in database (like simulate-attack does)
@@ -270,7 +282,7 @@ class SimulationManager {
       
       console.log(`[Simulation] ✓ Created shipment: ${shipmentData.routeId} (${shipmentData.driverName})`);
       
-      // Log activity BEFORE AI analysis (like simulate-attack does)
+      // Activity log for creation (BEFORE AI analysis - like simulate-attack does)
       const isHighRisk = shipmentData.routeStatus === 'critical' || shipmentData.routeStatus === 'suspicious';
       logActivity({
         userId,
@@ -283,8 +295,13 @@ class SimulationManager {
         metadata: { routeStatus: shipmentData.routeStatus }
       });
       
-      // Always attempt AI analysis (like simulate-attack does)
-      await this.analyzeWithAI(shipmentData, userId, cookieHeader);
+      // Now trigger the defense agent to analyze this shipment (like simulate-attack does)
+      if (user.agentActive) {
+        console.log('[Simulation] Agent is active, triggering AI analysis');
+        await this.analyzeWithAI(shipmentData, userId, cookieHeader);
+      } else {
+        console.log('[Simulation] Agent is NOT active, skipping AI analysis');
+      }
       
     } catch (error) {
       console.error(`[Simulation] ❍ Simulation cycle failed:`, error instanceof Error ? error.message : error);
@@ -299,6 +316,8 @@ class SimulationManager {
 
     console.log(`[Simulation] ▶️  Starting continuous simulation (${SIMULATION_INTERVAL_MS / 1000}s interval)`);
     this.isRunning = true;
+    this.startTime = new Date();
+    this.currentUserId = userId;
 
     // Run immediately
     this.runSimulation(userId, cookieHeader).catch(err => {
@@ -315,7 +334,7 @@ class SimulationManager {
     return true;
   }
 
-  stop(): boolean {
+  async stop(userId?: string): Promise<boolean> {
     if (!this.isRunning) {
       console.log("[Simulation] Not running");
       return false;
@@ -323,12 +342,29 @@ class SimulationManager {
 
     console.log("[Simulation] ⏸️  Stopping continuous simulation");
     this.isRunning = false;
+    this.startTime = null;
 
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
     }
 
+    // Update database to prevent auto-restart on server reload
+    const userIdToUpdate = userId || this.currentUserId;
+    if (userIdToUpdate) {
+      try {
+        const { default: prisma } = await import("@/lib/prisma");
+        await prisma.user.update({
+          where: { id: userIdToUpdate },
+          data: { continuousSimActive: false },
+        });
+        console.log(`[Simulation] ✓ Database updated: continuousSimActive=false for user ${userIdToUpdate}`);
+      } catch (error) {
+        console.error("[Simulation] ❌ Failed to update database:", error instanceof Error ? error.message : error);
+      }
+    }
+
+    this.currentUserId = null;
     return true;
   }
 
@@ -340,10 +376,29 @@ class SimulationManager {
       });
     }
     
+    const uptimeMs = this.startTime ? Date.now() - this.startTime.getTime() : 0;
+    
     return {
       isRunning: this.isRunning,
       intervalMs: SIMULATION_INTERVAL_MS,
+      startTime: this.startTime,
+      uptimeMs,
+      uptimeFormatted: this.formatUptime(uptimeMs),
     };
+  }
+
+  private formatUptime(ms: number): string {
+    if (ms === 0) return "Not running";
+    
+    const seconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    if (days > 0) return `${days}d ${hours % 24}h ${minutes % 60}m`;
+    if (hours > 0) return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+    if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+    return `${seconds}s`;
   }
 }
 

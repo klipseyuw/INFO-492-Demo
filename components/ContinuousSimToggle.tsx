@@ -57,7 +57,7 @@ export default function ContinuousSimToggle() {
             Continuous Simulation
           </h3>
           <p className="text-sm text-gray-600 mt-1">
-            Generate synthetic shipments every 20 seconds for autonomous agent testing
+            Generate synthetic shipments every 60 seconds for autonomous agent testing
           </p>
         </div>
         <button
@@ -92,7 +92,7 @@ export default function ContinuousSimToggle() {
         </span>
         {active && (
           <span className="text-gray-500">
-            • Generating routes every 20s
+            • Generating routes every 60s
           </span>
         )}
       </div>
