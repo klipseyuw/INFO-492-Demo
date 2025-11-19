@@ -21,6 +21,75 @@ const CITIES = [
   'Missoula, MT', 'Yakima, WA', 'Eugene, OR', 'Salem, OR', 'Bellingham, WA'
 ];
 
+// Simulation scenarios matching simulate-attack patterns
+const SIMULATION_SCENARIOS = [
+  // ATTACK SCENARIOS (50% probability)
+  {
+    type: "Route Manipulation",
+    delayMinutes: () => Math.floor(Math.random() * 60) + 30, // 30-90 minutes
+    routeStatus: "critical",
+    gpsAnomalies: true,
+    isAttack: true
+  },
+  {
+    type: "ETA Manipulation", 
+    delayMinutes: () => Math.floor(Math.random() * 120) + 60, // 60-180 minutes
+    routeStatus: "critical",
+    gpsAnomalies: false,
+    isAttack: true
+  },
+  {
+    type: "Cargo Tampering",
+    delayMinutes: () => Math.floor(Math.random() * 45) + 15, // 15-60 minutes
+    routeStatus: "suspicious",
+    gpsAnomalies: false,
+    isAttack: true
+  },
+  {
+    type: "Cyber Attack",
+    delayMinutes: () => Math.floor(Math.random() * 30) + 5, // 5-35 minutes
+    routeStatus: "critical",
+    gpsAnomalies: true,
+    isAttack: true
+  },
+  {
+    type: "Driver Impersonation",
+    delayMinutes: () => Math.floor(Math.random() * 90) + 20, // 20-110 minutes
+    routeStatus: "suspicious",
+    gpsAnomalies: false,
+    isAttack: true
+  },
+  // NORMAL OPERATIONS (50% probability)
+  {
+    type: "Normal Operation",
+    delayMinutes: () => Math.floor(Math.random() * 10) - 5, // -5 to +5 minutes
+    routeStatus: "in-progress",
+    gpsAnomalies: false,
+    isAttack: false
+  },
+  {
+    type: "Traffic Delay",
+    delayMinutes: () => Math.floor(Math.random() * 20) + 5, // 5-25 minutes
+    routeStatus: "delayed",
+    gpsAnomalies: false,
+    isAttack: false
+  },
+  {
+    type: "Weather Delay",
+    delayMinutes: () => Math.floor(Math.random() * 15) + 10, // 10-25 minutes
+    routeStatus: "delayed",
+    gpsAnomalies: false,
+    isAttack: false
+  },
+  {
+    type: "Fuel Stop",
+    delayMinutes: () => Math.floor(Math.random() * 15) + 5, // 5-20 minutes
+    routeStatus: "in-progress",
+    gpsAnomalies: false,
+    isAttack: false
+  }
+];
+
 interface ShipmentData {
   routeId: string;
   driverName: string;
@@ -136,67 +205,56 @@ class SimulationManager {
   private generateShipmentData(): ShipmentData {
     const now = new Date();
     
-    // Expected ETA: 15-60 minutes from now
-    const expectedMinutes = Math.floor(Math.random() * 45) + 15;
+    // Expected ETA: 1-3 hours from now
+    const expectedMinutes = Math.floor(Math.random() * 120) + 60;
     const expectedETA = new Date(now.getTime() + expectedMinutes * 60 * 1000);
     
-    // Simulate different scenarios
-    const scenario = Math.random();
-    let actualETA: Date | undefined;
-    let routeStatus = "in-progress";
-    
-    if (scenario < 0.6) {
-      // 60% chance: Normal delivery with slight variation
-      const variation = (Math.random() - 0.5) * 20; // ±10 minutes
-      actualETA = new Date(expectedETA.getTime() + variation * 60 * 1000);
-      routeStatus = Math.random() < 0.3 ? "delivered" : "in-progress";
-    } else if (scenario < 0.75) {
-      // 15% chance: Minor delay (15-30 minutes) 
-      const delay = Math.floor(Math.random() * 15) + 15;
-      actualETA = new Date(expectedETA.getTime() + delay * 60 * 1000);
-      routeStatus = "delayed";
-    } else if (scenario < 0.9) {
-      // 15% chance: Moderate delay (30-60 minutes)
-      const delay = Math.floor(Math.random() * 30) + 30;
-      actualETA = new Date(expectedETA.getTime() + delay * 60 * 1000);
-      routeStatus = "delayed";
-    } else if (scenario < 0.97) {
-      // 7% chance: Major delay - potential threat (60-120 minutes)
-      const delay = Math.floor(Math.random() * 60) + 60;
-      actualETA = new Date(expectedETA.getTime() + delay * 60 * 1000);
-      routeStatus = "delayed";
-    } else {
-      // 3% chance: Critical threat - route manipulation
-      const isEarlyAttack = Math.random() < 0.3;
-      if (isEarlyAttack) {
-        const earlyBy = Math.floor(Math.random() * 60) + 30;
-        actualETA = new Date(expectedETA.getTime() - earlyBy * 60 * 1000);
-        routeStatus = "suspicious";
-      } else {
-        const delay = Math.floor(Math.random() * 120) + 120;
-        actualETA = new Date(expectedETA.getTime() + delay * 60 * 1000);
-        routeStatus = "critical";
-      }
-    }
+    // Select random scenario (50% attack, 50% normal)
+    const scenario = SIMULATION_SCENARIOS[Math.floor(Math.random() * SIMULATION_SCENARIOS.length)];
+    const delayMinutes = scenario.delayMinutes();
+    const actualETA = new Date(expectedETA.getTime() + delayMinutes * 60 * 1000);
+    const routeStatus = scenario.routeStatus;
 
-    // Generate telemetry
+    // Generate telemetry based on scenario
     const origin = CITIES[Math.floor(Math.random() * CITIES.length)];
     let destination = CITIES[Math.floor(Math.random() * CITIES.length)];
     if (destination === origin) {
       destination = CITIES[(CITIES.indexOf(origin) + 3) % CITIES.length];
     }
-    const gpsOnline = Math.random() < 0.9;
-    const lastKnownLat = 45 + Math.random() * 5;
-    const lastKnownLng = -123 + Math.random() * 5;
-    const lastKnownAt = new Date(now.getTime() - Math.floor(Math.random() * 60) * 60 * 1000).toISOString();
-    const speedKph = Math.max(0, Math.round(80 + (Math.random() - 0.5) * 60));
-    const headingDeg = Math.floor(Math.random() * 360);
+    
+    let gpsOnline = true;
+    let lastKnownLat = 45 + Math.random() * 5;
+    let lastKnownLng = -123 + Math.random() * 5;
+    let lastKnownAt = new Date(now.getTime() - Math.floor(Math.random() * 10) * 60 * 1000).toISOString();
+    let speedKph = Math.max(0, Math.round(80 + (Math.random() - 0.5) * 40));
+    let headingDeg = Math.floor(Math.random() * 360);
+
+    // Apply GPS anomalies for certain attack types
+    if (scenario.gpsAnomalies) {
+      if (scenario.type === "Cyber Attack") {
+        gpsOnline = false;
+        lastKnownAt = new Date(now.getTime() - 40 * 60 * 1000).toISOString();
+        speedKph = 0;
+      } else if (scenario.type === "Route Manipulation") {
+        // GPS spoofing - suspicious coordinates or speed
+        speedKph = Math.round(Math.random() * 20); // Very slow or stopped
+        lastKnownAt = new Date(now.getTime() - 20 * 60 * 1000).toISOString();
+      }
+    } else if (scenario.type === "Cargo Tampering") {
+      // Stopped at unexpected location
+      speedKph = 0;
+      lastKnownAt = new Date(now.getTime() - 45 * 60 * 1000).toISOString();
+    } else if (scenario.type === "Fuel Stop") {
+      // Normal stop
+      speedKph = 0;
+      lastKnownAt = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
+    }
 
     return {
       routeId: this.generateRandomRoute(),
       driverName: this.generateRandomDriver(),
       expectedETA: expectedETA.toISOString(),
-      actualETA: actualETA?.toISOString(),
+      actualETA: actualETA.toISOString(),
       routeStatus,
       origin,
       destination,
