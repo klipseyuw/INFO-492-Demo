@@ -46,12 +46,24 @@ class SimulationManager {
   private currentUserId: string | null = null;
 
   constructor() {
-    // In production (Render), use NEXTAUTH_URL. In development, default to localhost
-    const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL;
+    // Detect the appropriate base URL for API calls
+    // Priority: NEXTAUTH_URL > RENDER_EXTERNAL_URL > VERCEL_URL > localhost
+    let baseUrl = process.env.NEXTAUTH_URL || process.env.RENDER_EXTERNAL_URL || process.env.VERCEL_URL;
+    
     if (baseUrl) {
       // Ensure it has a protocol
       this.apiBaseUrl = baseUrl.startsWith('http') ? baseUrl : `https://${baseUrl}`;
+    } else if (process.env.NODE_ENV === 'production') {
+      // In production without explicit URL, try to construct from RENDER_SERVICE_NAME
+      const serviceName = process.env.RENDER_SERVICE_NAME;
+      if (serviceName) {
+        this.apiBaseUrl = `https://${serviceName}.onrender.com`;
+      } else {
+        console.error('[Simulation] ⚠️  WARNING: Running in production but no base URL configured!');
+        this.apiBaseUrl = "http://localhost:3000";
+      }
     } else {
+      // Development environment
       this.apiBaseUrl = "http://localhost:3000";
     }
     console.log(`[Simulation] Initialized with API base URL: ${this.apiBaseUrl}`);
