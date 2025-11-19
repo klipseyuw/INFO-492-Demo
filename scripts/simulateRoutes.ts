@@ -69,6 +69,11 @@ interface ShipmentData {
   lastKnownAt?: string;
   speedKph?: number;
   headingDeg?: number;
+  attackScenario?: {
+    type: string;
+    description: string;
+    isAttack: boolean;
+  };
 }
 
 function generateRandomRoute(): string {
@@ -95,24 +100,40 @@ function generateShipmentData(): ShipmentData {
   let routeStatus = "in-progress";
   let gpsOnline = true;
   let speedKph = Math.max(0, Math.round(80 + (Math.random() - 0.5) * 60));
+  let attackScenario: { type: string; description: string; isAttack: boolean } | undefined;
   
   if (scenario < 0.4) {
     // 40% chance: Normal delivery with slight variation
     const variation = (Math.random() - 0.5) * 20; // ±10 minutes
     actualETA = new Date(expectedETA.getTime() + variation * 60 * 1000);
     routeStatus = Math.random() < 0.3 ? "delivered" : "in-progress";
+    attackScenario = {
+      type: "Normal Operation",
+      description: "Standard delivery proceeding as planned",
+      isAttack: false
+    };
   } else if (scenario < 0.55) {
     // 15% chance: Minor delay (15-30 minutes) with GPS issues
     const delay = Math.floor(Math.random() * 15) + 15;
     actualETA = new Date(expectedETA.getTime() + delay * 60 * 1000);
     routeStatus = "delayed";
     gpsOnline = Math.random() < 0.3; // 70% chance GPS offline
+    attackScenario = {
+      type: gpsOnline ? "Traffic Delay" : "GPS Malfunction",
+      description: gpsOnline ? "Minor delay due to traffic conditions" : "GPS system malfunction detected",
+      isAttack: !gpsOnline // GPS offline with delay is suspicious
+    };
   } else if (scenario < 0.70) {
     // 15% chance: Moderate delay (30-60 minutes) with speed anomalies
     const delay = Math.floor(Math.random() * 30) + 30;
     actualETA = new Date(expectedETA.getTime() + delay * 60 * 1000);
     routeStatus = "delayed";
     speedKph = Math.random() < 0.5 ? 0 : Math.round(Math.random() * 30); // Stopped or very slow
+    attackScenario = {
+      type: speedKph === 0 ? "Unauthorized Stop" : "Route Deviation",
+      description: speedKph === 0 ? "Unexpected stop detected at unauthorized location" : "Vehicle moving at suspicious speed with significant delay",
+      isAttack: true // Moderate delay with anomalies = potential attack
+    };
   } else if (scenario < 0.85) {
     // 15% chance: Major delay - potential cargo tampering (60-120 minutes, stopped)
     const delay = Math.floor(Math.random() * 60) + 60;
@@ -120,6 +141,11 @@ function generateShipmentData(): ShipmentData {
     routeStatus = "delayed";
     speedKph = 0; // Vehicle stopped
     gpsOnline = Math.random() < 0.4; // 60% chance GPS offline
+    attackScenario = {
+      type: "Cargo Tampering",
+      description: "Extended stop detected - potential cargo tampering or theft",
+      isAttack: true // Major delay + stopped = high risk
+    };
   } else {
     // 15% chance: Critical threat - route manipulation/hijacking
     const isEarlyAttack = Math.random() < 0.3;
@@ -129,6 +155,11 @@ function generateShipmentData(): ShipmentData {
       actualETA = new Date(expectedETA.getTime() - earlyBy * 60 * 1000);
       routeStatus = "suspicious";
       gpsOnline = false; // GPS spoofing indicator
+      attackScenario = {
+        type: "ETA Manipulation",
+        description: "Delivery time tampering detected - ETA artificially modified",
+        isAttack: true
+      };
     } else {
       // Severe delay with GPS offline (route hijacking/manipulation)
       const delay = Math.floor(Math.random() * 120) + 120;
@@ -136,6 +167,11 @@ function generateShipmentData(): ShipmentData {
       routeStatus = "critical";
       gpsOnline = false; // GPS disabled
       speedKph = 0; // Not moving
+      attackScenario = {
+        type: "Route Manipulation",
+        description: "Severe route deviation detected - potential hijacking",
+        isAttack: true
+      };
     }
   }
 
@@ -167,7 +203,8 @@ function generateShipmentData(): ShipmentData {
     lastKnownLng,
     lastKnownAt,
     speedKph,
-    headingDeg
+    headingDeg,
+    attackScenario
   };
 }
 
