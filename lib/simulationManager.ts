@@ -46,7 +46,15 @@ class SimulationManager {
   private currentUserId: string | null = null;
 
   constructor() {
-    this.apiBaseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+    // In production (Render), use NEXTAUTH_URL. In development, default to localhost
+    const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL;
+    if (baseUrl) {
+      // Ensure it has a protocol
+      this.apiBaseUrl = baseUrl.startsWith('http') ? baseUrl : `https://${baseUrl}`;
+    } else {
+      this.apiBaseUrl = "http://localhost:3000";
+    }
+    console.log(`[Simulation] Initialized with API base URL: ${this.apiBaseUrl}`);
   }
 
   /**
@@ -55,6 +63,11 @@ class SimulationManager {
    */
   async initialize(): Promise<void> {
     if (this.initialized) return;
+    
+    console.log(`[Simulation] Initializing... Environment check:`);
+    console.log(`[Simulation] - NEXTAUTH_URL: ${process.env.NEXTAUTH_URL ? 'SET' : 'NOT SET'}`);
+    console.log(`[Simulation] - NODE_ENV: ${process.env.NODE_ENV}`);
+    console.log(`[Simulation] - API Base URL: ${this.apiBaseUrl}`);
     
     try {
       // Dynamic import to avoid circular dependencies
@@ -206,17 +219,31 @@ class SimulationManager {
     try {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
+        'Referer': this.apiBaseUrl, // Add Referer header like simulate-attack does
       };
       if (cookieHeader) {
         headers['Cookie'] = cookieHeader;
       }
 
+      const apiUrl = `${this.apiBaseUrl}/api/ai`;
       console.log(`[Simulation] 🤖 Calling AI analysis for ${shipmentData.routeId}...`);
+      console.log(`[Simulation] API URL: ${apiUrl}`);
+      console.log(`[Simulation] Has cookie: ${!!cookieHeader}`);
       
-      const response = await axios.post(`${this.apiBaseUrl}/api/ai`, {
+      const response = await axios.post(apiUrl, {
         ...shipmentData,
         userId: userId
-      }, { headers });
+      }, { 
+        headers,
+        timeout: 30000, // 30 second timeout
+        validateStatus: (status) => status < 500, // Don't throw on 4xx errors
+        maxRedirects: 0 // Don't follow redirects
+      });
+      
+      if (response.status >= 400) {
+        console.error(`[Simulation] ❌ AI API returned error status ${response.status}:`, response.data);
+        return;
+      }
       
       if (response.data.analyzed) {
         const risk = response.data.riskScore || 0;
@@ -232,10 +259,15 @@ class SimulationManager {
     } catch (error: any) {
       const status = error?.response?.status;
       const data = error?.response?.data;
-      console.error(`[Simulation] ❍ AI analysis failed:`, {
+      const config = error?.config;
+      console.error(`[Simulation] ❌ AI analysis failed for ${shipmentData.routeId}:`, {
         status,
         message: error.message,
-        data
+        data,
+        url: config?.url,
+        hasAuth: !!config?.headers?.Cookie,
+        errorCode: error.code,
+        errorStack: error.stack?.split('\n')[0]
       });
     }
   }
