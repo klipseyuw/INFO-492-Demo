@@ -15,37 +15,26 @@ export async function GET(req: Request) {
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
     // Gather metrics
-    const [totalAnalyses, alertsCreated, alertFeedback, analysisFeedback, allAnalyses] = await Promise.all([
+    const [totalAnalyses, alertsCreated, allAnalyses] = await Promise.all([
       prisma.analysis.count({ where: { createdAt: { gte: since } } }),
       prisma.alert.count({ where: { createdAt: { gte: since } } }),
-      prisma.alertFeedback.findMany({
-        where: { createdAt: { gte: since } },
-        select: {
-          riskScoreAccurate: true,
-          attackTypeCorrect: true,
-        },
-      }),
-      prisma.analysisFeedback.findMany({
-        where: { createdAt: { gte: since } },
-        select: {
-          riskScoreAccurate: true,
-          attackTypeCorrect: true,
-        },
-      }),
       prisma.analysis.findMany({
         where: { createdAt: { gte: since } },
-        select: { riskScore: true, severity: true },
+        select: { riskScore: true, severity: true, groundTruthIsAttack: true },
       }),
     ]);
 
-    // Calculate accuracy (combine both feedback sources)
-    const allFeedback = [...alertFeedback, ...analysisFeedback];
-    const accuratePredictions = allFeedback.filter(
-      (f) => f.riskScoreAccurate && f.attackTypeCorrect
-    ).length;
+    // Calculate automatic accuracy based on ground truth
+    // AI predicts attack when riskScore > 20 (threshold from ai/route.ts)
+    const analysesWithGroundTruth = allAnalyses.filter(a => a.groundTruthIsAttack !== null);
+    const accuratePredictions = analysesWithGroundTruth.filter(a => {
+      const aiPredictedAttack = a.riskScore > 20;
+      return aiPredictedAttack === a.groundTruthIsAttack;
+    }).length;
+    
     const accuracyRate =
-      allFeedback.length > 0
-        ? ((accuratePredictions / allFeedback.length) * 100).toFixed(1)
+      analysesWithGroundTruth.length > 0
+        ? ((accuratePredictions / analysesWithGroundTruth.length) * 100).toFixed(1)
         : "N/A";
 
     // Severity distribution
@@ -72,7 +61,7 @@ export async function GET(req: Request) {
       metrics: {
         totalAnalyses,
         alertsCreated,
-        feedbackReceived: allFeedback.length,
+        feedbackReceived: analysesWithGroundTruth.length,
         accurateFeedback: accuratePredictions,
         accuracyRate: accuracyRate !== "N/A" ? `${accuracyRate}%` : "N/A",
         avgRiskScore: avgRiskScore,

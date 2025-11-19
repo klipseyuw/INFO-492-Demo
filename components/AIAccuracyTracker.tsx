@@ -106,6 +106,9 @@ export default function AIAccuracyTracker() {
           <p className={`text-2xl font-bold ${accuracyColor}`}>
             {data.metrics.accuracyRate}
           </p>
+          <p className="text-xs text-gray-500 mt-1">
+            {data.metrics.accurateFeedback} / {data.metrics.feedbackReceived} accurate
+          </p>
         </div>
       </div>
 
@@ -134,7 +137,7 @@ export default function AIAccuracyTracker() {
       </div>
 
       <p className="text-xs text-gray-500 mt-4">
-        Last {data.timePeriod} • {data.metrics.feedbackReceived} feedback samples
+        Last {data.timePeriod} • {data.metrics.feedbackReceived} evaluated predictions
       </p>
     </div>
   );

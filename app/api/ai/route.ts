@@ -619,7 +619,8 @@ Return JSON only:
           description: result.description || '',
           shipmentContext: JSON.stringify(shipmentContext),
           analyzed: true,
-          source: typeof result.source === 'string' ? result.source : undefined
+          source: typeof result.source === 'string' ? result.source : undefined,
+          groundTruthIsAttack: attackScenario?.isAttack ?? null
         }
       });
     } catch (err) {

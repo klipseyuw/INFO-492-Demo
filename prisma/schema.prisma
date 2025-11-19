@@ -86,6 +86,7 @@ model Analysis {
   shipmentContext    String   // JSON: delay, telemetry, scenario for feedback
   analyzed           Boolean  @default(true)
   source             String?  // 'openrouter' or 'fallback'
+  groundTruthIsAttack Boolean? // Ground truth: was this actually an attack?
   createdAt          DateTime @default(now())
   feedback           AnalysisFeedback?
 }
