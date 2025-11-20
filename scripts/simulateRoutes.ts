@@ -239,13 +239,16 @@ async function analyzeWithAI(shipmentData: ShipmentData): Promise<void> {
 
     const response = await axios.post(`${API_BASE_URL}/api/ai`, {
       ...shipmentData,
-      userId: DEMO_USER_ID
+      userId: DEMO_USER_ID,
+      // Include attackScenario for ground truth tracking
+      attackScenario: shipmentData.attackScenario
     }, { headers });
     
     if (response.data.analyzed) {
       const risk = response.data.riskScore || 0;
       const riskLevel = risk > 70 ? "HIGH" : risk > 40 ? "MEDIUM" : "LOW";
-      console.log(`🤖 AI Analysis: ${shipmentData.routeId} - Risk: ${risk}% (${riskLevel})`);
+      const attackStatus = shipmentData.attackScenario?.isAttack ? "ATTACK" : "NORMAL";
+      console.log(`🤖 AI Analysis: ${shipmentData.routeId} - Risk: ${risk}% (${riskLevel}) - Ground Truth: ${attackStatus}`);
       
       if (response.data.alertType && risk > 20) {
         console.log(`🚨 Alert Generated: ${response.data.alertType} - ${response.data.description}`);
