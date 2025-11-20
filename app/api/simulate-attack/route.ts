@@ -250,8 +250,52 @@ export async function POST(req: Request) {
         );
         
         console.log('[SIMULATE-ATTACK] AI analysis completed:', defenseResponse.data);
-        console.log('[SIMULATE-ATTACK] AI analysis completed:', defenseResponse.data);
         defenseAnalysis = defenseResponse.data;
+
+        // Auto-submit feedback for RL learning (since we know ground truth from scenario)
+        if (defenseAnalysis.success && defenseAnalysis.analysisId) {
+          try {
+            const aiRiskScore = defenseAnalysis.riskScore || 0;
+            const aiAttackType = defenseAnalysis.attackType || 'unknown';
+            
+            // Determine if AI correctly identified the attack
+            // For attacks: risk score should be high; for normal ops: should be low
+            const expectedHighRisk = scenario.isAttack;
+            const riskScoreAccurate = expectedHighRisk 
+              ? aiRiskScore >= 40  // Attack correctly flagged as medium+ risk
+              : aiRiskScore <= 30;  // Normal op correctly flagged as low risk
+            
+            // Check if attack type matches scenario type (fuzzy match)
+            const attackTypeCorrect = !scenario.isAttack || 
+              aiAttackType.toLowerCase().includes(scenario.type.toLowerCase().split(' ')[0]);
+            
+            // Submit feedback to /api/analyses/feedback for Analysis records
+            await axios.post(
+              `${protocol}://${host}/api/analyses/feedback`,
+              {
+                analysisId: defenseAnalysis.analysisId,
+                riskScoreAccurate,
+                attackTypeCorrect,
+                actualAttackType: scenario.isAttack ? scenario.type : 'None',
+                actualRiskScore: scenario.isAttack ? (scenario.delayMinutes > 60 ? 80 : 60) : 15,
+                notes: `Auto-feedback: ${scenario.type}`,
+                aiRiskScore,
+                aiAttackType,
+                shipmentContext: JSON.stringify(scenario)
+              },
+              {
+                headers: { 
+                  "Content-Type": "application/json",
+                  "Cookie": cookieHeader
+                }
+              }
+            );
+            
+            console.log(`[SIMULATE-ATTACK] Auto-feedback submitted: Risk=${riskScoreAccurate ? '✓' : '✗'}, Type=${attackTypeCorrect ? '✓' : '✗'}`);
+          } catch (feedbackError) {
+            console.error('[SIMULATE-ATTACK] Failed to submit auto-feedback:', feedbackError instanceof Error ? feedbackError.message : feedbackError);
+          }
+        }
       } catch (error: any) {
         const status = error?.response?.status;
         const data = error?.response?.data;
