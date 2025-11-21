@@ -24,8 +24,16 @@ export default function AIAccuracyTracker() {
 
   useEffect(() => {
     fetchValidation();
-    const interval = setInterval(fetchValidation, 30000); // Refresh every 30s
-    return () => clearInterval(interval);
+    const interval = setInterval(fetchValidation, document.visibilityState === 'visible' ? 10000 : 30000);
+    const visHandler = () => {
+      // Adaptive repoll immediately on visibility change
+      fetchValidation();
+    };
+    document.addEventListener('visibilitychange', visHandler);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', visHandler);
+    };
   }, []);
 
   const fetchValidation = async () => {
@@ -77,9 +85,13 @@ export default function AIAccuracyTracker() {
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">
-        AI Accuracy Tracker
-      </h3>
+      <div className="flex items-start justify-between mb-4">
+        <h3 className="text-lg font-semibold text-gray-900">AI Accuracy Tracker</h3>
+        <button
+          onClick={() => { setLoading(true); fetchValidation(); }}
+          className="text-xs px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
+        >Refresh</button>
+      </div>
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
@@ -102,12 +114,10 @@ export default function AIAccuracyTracker() {
           </p>
         </div>
         <div className="bg-gray-50 rounded p-3">
-          <p className="text-xs text-gray-600 mb-1">Accuracy</p>
-          <p className={`text-2xl font-bold ${accuracyColor}`}>
-            {data.metrics.accuracyRate}
-          </p>
+          <p className="text-xs text-gray-600 mb-1">Detection Accuracy</p>
+          <p className={`text-2xl font-bold ${accuracyColor}`}>{data.metrics.accuracyRate}</p>
           <p className="text-xs text-gray-500 mt-1">
-            {data.metrics.accurateFeedback} / {data.metrics.feedbackReceived} accurate
+            {data.metrics.accurateFeedback} / {data.metrics.feedbackReceived}
           </p>
         </div>
       </div>

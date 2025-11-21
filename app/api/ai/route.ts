@@ -620,7 +620,8 @@ Return JSON only:
           shipmentContext: JSON.stringify(shipmentContext),
           analyzed: true,
           source: typeof result.source === 'string' ? result.source : undefined,
-          groundTruthIsAttack: attackScenario?.isAttack ?? null
+          // Treat absence of an attack scenario as explicit non-attack for accuracy metrics
+          groundTruthIsAttack: attackScenario?.isAttack ?? false
         }
       });
     } catch (err) {

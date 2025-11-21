@@ -26,9 +26,13 @@ export async function GET(req: Request) {
 
     // Calculate automatic accuracy based on ground truth
     // AI predicts attack when riskScore > 20 (threshold from ai/route.ts)
-    const analysesWithGroundTruth = allAnalyses.filter(a => a.groundTruthIsAttack !== null);
+    // Treat null groundTruth as false (routine shipment) so accuracy always computes
+    const analysesWithGroundTruth = allAnalyses.map(a => ({
+      ...a,
+      groundTruthIsAttack: a.groundTruthIsAttack === null ? false : a.groundTruthIsAttack
+    }));
     const accuratePredictions = analysesWithGroundTruth.filter(a => {
-      const aiPredictedAttack = a.riskScore > 20;
+      const aiPredictedAttack = a.riskScore > 20; // detection threshold
       return aiPredictedAttack === a.groundTruthIsAttack;
     }).length;
     
