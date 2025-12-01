@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import axios from "axios";
 import { logActivity, updateActivity } from "@/lib/agentActivity";
+import { estimateConditions, formatConditionsBrief } from "@/lib/conditions";
 import { getSessionFromRequest, requireRole } from "@/lib/auth";
 
 export async function POST(req: Request) {
@@ -73,6 +74,15 @@ export async function POST(req: Request) {
     telemetryLines.push(`- Cargo: ${cargoName}${qty ? ` x${qty}` : ''}${unit ? ` @ $${unit.toLocaleString()}` : ''}${total ? ` (≈ $${Math.round(total).toLocaleString()})` : ''}`);
   }
 
+  // Compute location-based environment context (weather/road)
+  const conditions = estimateConditions({
+    lat: typeof lastKnownLat === 'number' ? lastKnownLat : undefined,
+    lng: typeof lastKnownLng === 'number' ? lastKnownLng : undefined,
+    origin,
+    destination
+  });
+  const environmentContext = `ENVIRONMENT CONTEXT:\n- Region: ${conditions.regionKey}\n- Conditions: ${formatConditionsBrief(conditions)}`;
+
   // Fetch recent feedback for few-shot learning
   let learningContext = '';
   try {
@@ -124,6 +134,7 @@ Expected ETA: ${expectedETA}
 Actual ETA: ${actualETA || 'In transit'}
 Delay: ${Math.round(delayMinutes)} minutes
 ${telemetryLines.join('\n')}
+\n${environmentContext}
 
 RISK SCORING CRITERIA:
 
@@ -675,7 +686,8 @@ Return JSON only:
         cargoName,
         cargoQuantity,
         cargoUnitCost,
-        cargoTotalValue
+        cargoTotalValue,
+        conditions
       };
       await prisma.analysis.create({
         data: {
@@ -783,7 +795,8 @@ Return JSON only:
       cargoName,
       cargoQuantity,
       cargoUnitCost,
-      cargoTotalValue
+      cargoTotalValue,
+      conditions
     };
 
     return NextResponse.json({

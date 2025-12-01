@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import axios from "axios";
+import { estimateConditions, formatConditionsHtml } from "@/lib/conditions";
 
 // Fix default icon paths (Next.js bundling)
 const DefaultIcon = L.icon({
@@ -140,28 +141,40 @@ export default function ShipmentMapImpl({ refreshTrigger }: { refreshTrigger?: n
     const seenIds: Record<string, true> = {};
     for (const s of shipments) {
       seenIds[s.id] = true;
+      const cond = estimateConditions({
+        lat: typeof s.lastKnownLat === "number" ? s.lastKnownLat : undefined,
+        lng: typeof s.lastKnownLng === "number" ? s.lastKnownLng : undefined,
+        origin: s.origin || undefined,
+        destination: s.destination || undefined,
+      });
+      const popupHtml = `
+        <div class="text-sm">
+          <div class="font-semibold">${s.routeId} — ${s.driverName}</div>
+          <div class="text-xs text-gray-600">${s.origin || '—'} → ${s.destination || '—'}</div>
+          ${formatConditionsHtml(cond)}
+        </div>`;
       // Marker for current position
       if (typeof s.lastKnownLat === "number" && typeof s.lastKnownLng === "number") {
         const pos: [number, number] = [s.lastKnownLat, s.lastKnownLng];
         if (!layers.markers[s.id]) {
           const m = L.marker(pos).addTo(map);
-          m.bindPopup(
-            `<div class="text-sm"><div class="font-semibold">${s.routeId} — ${s.driverName}</div>
-              <div class="text-xs text-gray-600">${s.origin || '—'} → ${s.destination || '—'}</div>
-            </div>`
-          );
+          m.bindPopup(popupHtml);
           layers.markers[s.id] = m;
         } else {
           layers.markers[s.id].setLatLng(pos);
+          layers.markers[s.id].setPopupContent(popupHtml);
         }
       }
       // Polyline for route
       const linePts = computeLine(s);
       if (linePts) {
         if (!layers.lines[s.id]) {
-          layers.lines[s.id] = L.polyline(linePts, { color: "#2563eb", weight: 3, opacity: 0.7 }).addTo(map);
+          const line = L.polyline(linePts, { color: "#2563eb", weight: 3, opacity: 0.7 }).addTo(map);
+          line.bindPopup(popupHtml);
+          layers.lines[s.id] = line;
         } else {
           layers.lines[s.id].setLatLngs(linePts);
+          layers.lines[s.id].setPopupContent(popupHtml);
         }
       }
     }

@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, Fragment } from "react";
 import axios from "axios";
+import { estimateConditions } from "@/lib/conditions";
 
 interface Shipment {
   id: string;
@@ -193,6 +194,12 @@ export default function ShipmentTable({ refreshTrigger }: ShipmentTableProps) {
                 const lastSeenAgeMin = shipment.lastKnownAt && currentTime > 0 
                   ? Math.round((currentTime - new Date(shipment.lastKnownAt).getTime()) / 60000) 
                   : null;
+                const cond = estimateConditions({
+                  lat: typeof shipment.lastKnownLat === 'number' ? shipment.lastKnownLat : undefined,
+                  lng: typeof shipment.lastKnownLng === 'number' ? shipment.lastKnownLng : undefined,
+                  origin: shipment.origin || undefined,
+                  destination: shipment.destination || undefined,
+                });
                 return (
                   <Fragment key={shipment.id}>
                     <tr key={shipment.id} className="hover:bg-gray-50">
@@ -288,6 +295,14 @@ export default function ShipmentTable({ refreshTrigger }: ShipmentTableProps) {
                               <div>
                                 {typeof shipment.headingDeg === 'number' ? `${shipment.headingDeg}°` : '—'}
                                 {typeof shipment.speedKph === 'number' ? ` @ ${shipment.speedKph} kph` : ''}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-gray-600 text-xs">Environment</div>
+                              <div>
+                                <div><span className="font-medium">Weather:</span> {cond.weather.summary} • {cond.weather.temperatureC}°C • wind {cond.weather.windKph} kph{cond.weather.precipitation !== 'None' ? ` • ${cond.weather.precipitation}` : ''}</div>
+                                <div><span className="font-medium">Roads:</span> {cond.roads.status} • traffic {cond.roads.traffic}</div>
+                                {cond.roads.advisory ? (<div className="text-xs text-amber-700 mt-0.5">{cond.roads.advisory}</div>) : null}
                               </div>
                             </div>
                             <div className="md:col-span-3">
