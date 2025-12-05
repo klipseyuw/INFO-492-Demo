@@ -115,7 +115,7 @@
 
 ## 9) Final Deliverables
 
-- **Final Analysis (1000+ words):** See project documentation ([12/1/25 — INFO 492 B Final Analysis]([url](https://docs.google.com/document/d/1MDSo9mkw68osUp-rVw8OjcWtZfSvVaP64RLidkjai3o/edit?usp=sharing)))
+- **Final Analysis (1000+ words):** See project documentation ([12/1/25 — INFO 492 B Final Analysis](https://docs.google.com/document/d/1MDSo9mkw68osUp-rVw8OjcWtZfSvVaP64RLidkjai3o/edit?usp=sharing))
 - **Slides:** ([Presentation](https://docs.google.com/presentation/d/1-QsRxD_Hf_aVh7T3HMuUIGXTR01sxS0Qd3Ckc1oGK9Y/edit?usp=sharing))
 - **Evidence folder (logs/screens):** Dashboard screenshots, accuracy progression graphs (32% → 85%), interactive map demos, feedback loop examples
 
